@@ -1,19 +1,46 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
+import { useLanguage } from '../locales/LanguageContext';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 
 const Login = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [form, setForm] = useState({ email: '', password: '' });
   const [loginError, setLoginError] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({});
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  const validateForm = () => {
+    const errors = {};
+    
+    if (!form.email) {
+      errors.email = t('pleaseEnterEmail');
+    } else if (!/\S+@\S+\.\S+/.test(form.email)) {
+      errors.email = t('invalidEmailFormat');
+    }
+    
+    if (!form.password) {
+      errors.password = t('pleaseEnterPassword');
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoginError(false);
+    setValidationErrors({});
+    
+    if (!validateForm()) {
+      return;
+    }
+    
     try {
       const res = await axios.post('http://localhost:5000/api/users/login', form);
       sessionStorage.setItem('token', res.data.token);
@@ -100,30 +127,44 @@ const Login = () => {
           font-size: 0.8rem;
           color: #aaa;
           margin-top: 1rem;
+          position: relative;
         }
       `}</style>
 
       <div className="login-container">
         <form className="login-form" onSubmit={handleLogin}>
-          <h2>PLAN TOGETHER</h2>
+          <h2>{t('appName')}</h2>
 
-          <label>Email:</label>
-          <input type="email" name="email" value={form.email} onChange={handleChange} required />
-
-          <label>Hasło:</label>
-          <input type="password" name="password" value={form.password} onChange={handleChange} required />
-          {loginError && (
-            <div style={{ color: 'orange', margin: '8px 0', textAlign: 'center' }}>
-              Nieprawidłowe dane
+          <label>{t('email')}</label>
+          <input type="email" name="email" value={form.email} onChange={handleChange} />
+          {validationErrors.email && (
+            <div style={{ color: 'orange', margin: '4px 0', textAlign: 'center', fontSize: '0.8rem' }}>
+              {validationErrors.email}
             </div>
           )}
-          <button type="submit">ZALOGUJ SIĘ</button>
+
+          <label>{t('password')}</label>
+          <input type="password" name="password" value={form.password} onChange={handleChange} />
+          {validationErrors.password && (
+            <div style={{ color: 'orange', margin: '4px 0', textAlign: 'center', fontSize: '0.8rem' }}>
+              {validationErrors.password}
+            </div>
+          )}
+          {loginError && (
+            <div style={{ color: 'orange', margin: '8px 0', textAlign: 'center' }}>
+              {t('invalidCredentials')}
+            </div>
+          )}
+          <button type="submit">{t('login')}</button>
 
           <p>
-            Nie masz konta? <Link to="/register"><strong>Zarejestruj się</strong></Link>
+            {t('noAccount')} <Link to="/register"><strong>{t('register')}</strong></Link>
           </p>
 
-          <footer>Wersja 1.0 • © 2025 PlanTogether</footer>
+          <footer>
+            {t('version')}
+          </footer>
+          <LanguageSwitcher position="bottom-right" />
         </form>
       </div>
     </>

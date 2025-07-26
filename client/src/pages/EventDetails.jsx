@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useLanguage } from '../locales/LanguageContext';
 import ScheduleModal from '../components/ScheduleModal';
 
 const EventDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { t, language } = useLanguage();
   const token = sessionStorage.getItem('token');
   const userId = sessionStorage.getItem('userId');
 
@@ -15,6 +17,9 @@ const EventDetails = () => {
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [showConfirmLeave, setShowConfirmLeave] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [participantFilter, setParticipantFilter] = useState('');
+  const [showRemoveParticipantModal, setShowRemoveParticipantModal] = useState(false);
+  const [participantToRemove, setParticipantToRemove] = useState(null);
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
 
   useEffect(() => {
@@ -57,7 +62,7 @@ const EventDetails = () => {
       // Show success notification before redirect
       setNotification({ 
         show: true, 
-        message: `✓ Opuszczono wydarzenie "${event.title}"`, 
+        message: `✓ ${t('eventLeft', { title: event.title })}`, 
         type: 'success' 
       });
       
@@ -70,7 +75,7 @@ const EventDetails = () => {
       console.error('Błąd opuszczania wydarzenia:', err);
       setNotification({ 
         show: true, 
-        message: '✗ Błąd opuszczania wydarzenia. Spróbuj ponownie.', 
+        message: `✗ ${t('errorLeavingEvent')}`, 
         type: 'error' 
       });
       
@@ -81,9 +86,28 @@ const EventDetails = () => {
     }
   };
 
+  const translateBackendMessage = (message) => {
+    const messageMap = {
+      'Jesteś twórcą wydarzenia': t('youAreEventCreator'),
+      'Nie znaleziono wydarzenia': t('eventNotFound'),
+      'Opuściłeś wydarzenie': t('leftEvent'),
+      'Błąd usuwania uczestnika': t('errorRemovingParticipant'),
+      'Błąd zapisu dostępności': t('errorSavingAvailability')
+    };
+    return messageMap[message] || message;
+  };
+
+  const filterParticipants = (participants, filter) => {
+    if (!filter.trim()) return participants;
+    return participants.filter(p => {
+      const fullName = `${p.user?.name || ''} ${p.user?.surname || ''}`.trim().toLowerCase();
+      return fullName.includes(filter.toLowerCase());
+    });
+  };
+
   const handleCopy = () => {
     navigator.clipboard.writeText(`https://plantogether.app/${id}`);
-    setCopyMsg('Skopiowano link!');
+    setCopyMsg(t('linkCopied'));
     setTimeout(() => setCopyMsg(''), 2000);
   };
 
@@ -99,7 +123,7 @@ const EventDetails = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Błąd zapisywania harmonogramu');
+        throw new Error(t('errorSavingSchedule'));
       }
 
       // Refresh event data after saving schedule
@@ -119,7 +143,7 @@ const EventDetails = () => {
       console.log('Updated sessionStorage with saved schedule:', savedKey);
       
       // Show internal success notification
-      setNotification({ show: true, message: '✓ Harmonogram został pomyślnie zapisany!', type: 'success' });
+      setNotification({ show: true, message: `✓ ${t('scheduleSavedSuccessfully')}`, type: 'success' });
       
       // Hide notification after 3 seconds
       setTimeout(() => {
@@ -127,7 +151,49 @@ const EventDetails = () => {
       }, 3000);
     } catch (error) {
       console.error('Błąd zapisywania harmonogramu:', error);
-      setNotification({ show: true, message: '✗ Błąd zapisywania harmonogramu. Spróbuj ponownie.', type: 'error' });
+      setNotification({ show: true, message: `✗ ${t('errorSavingScheduleTryAgain')}`, type: 'error' });
+      
+      // Hide notification after 5 seconds for errors
+      setTimeout(() => {
+        setNotification({ show: false, message: '', type: '' });
+      }, 5000);
+    }
+  };
+
+  const handleRemoveParticipant = async () => {
+    try {
+      const response = await fetch(`/api/events/${id}/kick`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ participantId: participantToRemove._id })
+      });
+
+      if (!response.ok) {
+        throw new Error(t('errorRemovingParticipant'));
+      }
+
+      // Refresh event data after removing participant
+      const updatedEvent = await fetch(`/api/events/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      }).then(res => res.json());
+      
+      setEvent(updatedEvent);
+      setShowRemoveParticipantModal(false);
+      setParticipantToRemove(null);
+      
+      // Show success notification
+      setNotification({ show: true, message: `✓ ${t('participantRemovedSuccess')}`, type: 'success' });
+      
+      // Hide notification after 3 seconds
+      setTimeout(() => {
+        setNotification({ show: false, message: '', type: '' });
+      }, 3000);
+    } catch (error) {
+      console.error('Błąd usuwania uczestnika:', error);
+      setNotification({ show: true, message: `✗ ${t('errorRemovingParticipant')}`, type: 'error' });
       
       // Hide notification after 5 seconds for errors
       setTimeout(() => {
@@ -152,58 +218,114 @@ const EventDetails = () => {
 
   return (
     <div style={styles.wrapper}>
-      <div style={styles.header}>Informacje o wydarzeniu</div>
+              <div style={styles.header}>{t('eventInformation')}</div>
       <div style={styles.box}>
         <h2 style={styles.title}>{event.title}</h2>
 
-        <div style={styles.label}>Link do wydarzenia:</div>
+        <div style={styles.label}>{t('eventLink')}</div>
         <input
           type="text"
           value={`https://plantogether.app/${id}`}
           readOnly
           style={styles.input}
         />
-        <button onClick={handleCopy} style={styles.copyButton}>Kopiuj link</button>
-        {copyMsg && <div style={styles.copied}>{copyMsg}</div>}
+                  <button onClick={handleCopy} style={styles.copyButton}>{t('copyLink')}</button>
 
         {isCreator && (
           <button onClick={() => setShowConfirmDelete(true)} style={styles.deleteBtn}>
-            USUŃ WYDARZENIE
+            {t('deleteEvent')}
           </button>
         )}
 
 
 
-        <div style={styles.label}>Opis wydarzenia:</div>
-        <div style={styles.description}>{event.description || '(brak)'}</div>
+        <div style={styles.label}>{t('eventDescription')}</div>
+        <div style={styles.description}>{event.description || t('noDescription')}</div>
 
-        <div style={styles.label}>Uczestnicy ({participants.length}):</div>
+        <div style={styles.label}>{t('participants')} ({participants.length}):</div>
         <div style={styles.participantsContainer}>
           {participants.length === 0 ? (
-            <div style={styles.noParticipants}>- Brak uczestników</div>
+            <div style={styles.noParticipants}>{t('noParticipants')}</div>
           ) : (
-            <div style={styles.columns}>
-              <div style={styles.column}>
-                <strong>Zadeklarowani:</strong>
-                {declared.length === 0 && <div style={styles.noParticipants}>- Brak</div>}
-                {declared.map((p, i) => (
-                  <div key={i} style={styles.person}>• {formatName(p.user, userId, event.creator)}</div>
-                ))}
+            <>
+              <div style={styles.filterContainer}>
+                <input
+                  type="text"
+                  placeholder={t('searchParticipants')}
+                  value={participantFilter}
+                  onChange={(e) => setParticipantFilter(e.target.value)}
+                  style={styles.filterInput}
+                />
               </div>
-              <div style={styles.column}>
-                <strong>Niezadeklarowani:</strong>
-                {undeclared.length === 0 && <div style={styles.noParticipants}>- Brak</div>}
-                {undeclared.map((p, i) => (
-                  <div key={i} style={styles.person}>• {formatName(p.user, userId, event.creator)}</div>
-                ))}
+              <div style={styles.columns}>
+                <div style={styles.column}>
+                  <strong>{t('declared')}</strong>
+                  {declared.length === 0 && <div style={styles.noParticipants}>{t('no')}</div>}
+                  <div style={{
+                    ...styles.participantsList,
+                    maxHeight: declared.length > 3 ? '200px' : 'auto',
+                    overflowY: declared.length > 3 ? 'auto' : 'visible',
+                    paddingRight: declared.length > 3 ? '5px' : '0'
+                  }}>
+                    {filterParticipants(declared, participantFilter).map((p, i) => (
+                      <div key={i} style={styles.person}>
+                        • {formatName(p.user, userId, event.creator, t, language)}
+                        {isCreator && p.user._id !== userId && (
+                          <button
+                            onClick={() => {
+                              setParticipantToRemove(p.user);
+                              setShowRemoveParticipantModal(true);
+                            }}
+                            style={styles.removeButton}
+                          >
+                            {t('removeParticipant')}
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {filterParticipants(declared, participantFilter).length === 0 && declared.length > 0 && (
+                      <div style={styles.noParticipants}>{t('noParticipantsFound')}</div>
+                    )}
+                  </div>
+                </div>
+                <div style={styles.column}>
+                  <strong>{t('undeclared')}</strong>
+                  {undeclared.length === 0 && <div style={styles.noParticipants}>{t('no')}</div>}
+                  <div style={{
+                    ...styles.participantsList,
+                    maxHeight: undeclared.length > 3 ? '200px' : 'auto',
+                    overflowY: undeclared.length > 3 ? 'auto' : 'visible',
+                    paddingRight: undeclared.length > 3 ? '5px' : '0'
+                  }}>
+                    {filterParticipants(undeclared, participantFilter).map((p, i) => (
+                      <div key={i} style={styles.person}>
+                        • {formatName(p.user, userId, event.creator, t, language)}
+                        {isCreator && p.user._id !== userId && (
+                          <button
+                            onClick={() => {
+                              setParticipantToRemove(p.user);
+                              setShowRemoveParticipantModal(true);
+                            }}
+                            style={styles.removeButton}
+                          >
+                            {t('removeParticipant')}
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {filterParticipants(undeclared, participantFilter).length === 0 && undeclared.length > 0 && (
+                      <div style={styles.noParticipants}>{t('noParticipantsFound')}</div>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
+            </>
           )}
         </div>
 
-        <div style={styles.label}>Najlepszy czas na wydarzenie to:</div>
+        <div style={styles.label}>{t('bestTimeForEvent')}</div>
         <div style={styles.bestTime}>
-          {calculateBestTime(participants)}
+          {calculateBestTime(participants, t)}
         </div>
 
         {(isCreator || isParticipant) && (
@@ -211,22 +333,22 @@ const EventDetails = () => {
             console.log('Opening schedule modal with event data:', event);
             setShowScheduleModal(true);
           }} style={styles.availabilityBtn}>
-            MOJA DOSTĘPNOŚĆ
+            {t('myAvailability')}
           </button>
         )}
 
         <button onClick={() => navigate('/dashboard')} style={styles.backBtn}>
-          POWRÓT
+          {t('back')}
         </button>
       </div>
 
       {showConfirmDelete && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalBox}>
-            <p>Czy na pewno chcesz usunąć to wydarzenie?</p>
+            <p>{t('areYouSureDeleteEvent')}</p>
             <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-              <button onClick={handleDelete} style={styles.modalDeleteBtn}>Usuń</button>
-              <button onClick={() => setShowConfirmDelete(false)} style={styles.modalCancelBtn}>Anuluj</button>
+              <button onClick={handleDelete} style={styles.modalDeleteBtn}>{t('delete')}</button>
+              <button onClick={() => setShowConfirmDelete(false)} style={styles.modalCancelBtn}>{t('cancel')}</button>
             </div>
           </div>
         </div>
@@ -245,6 +367,21 @@ const EventDetails = () => {
         />
       )}
 
+      {showRemoveParticipantModal && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalBox}>
+            <p>{t('confirmRemoveParticipant').replace('{name}', `${participantToRemove?.name} ${participantToRemove?.surname || ''}`.trim())}</p>
+            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+              <button onClick={handleRemoveParticipant} style={styles.modalDeleteBtn}>{t('removeParticipant')}</button>
+              <button onClick={() => {
+                setShowRemoveParticipantModal(false);
+                setParticipantToRemove(null);
+              }} style={styles.modalCancelBtn}>{t('cancel')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Wewnętrzne powiadomienie */}
       {notification.show && (
         <div style={styles.notification}>
@@ -257,32 +394,41 @@ const EventDetails = () => {
           </div>
         </div>
       )}
+
+      {/* Powiadomienie o skopiowaniu linka */}
+      {copyMsg && (
+        <div style={styles.copyNotification}>
+          {copyMsg}
+        </div>
+      )}
     </div>
   );
 };
 
-const formatName = (user, currentUserId, creator) => {
-  if (!user) return '(brak)';
+const formatName = (user, currentUserId, creator, t, language) => {
+  if (!user) return t('missing');
   const fullName = `${user.name} ${user.surname || ''}`.trim();
   
   // Check if this is the event creator
   const isCreator = creator?._id === user._id || creator === user._id;
   // Check if this is the current user
   const isCurrentUser = user._id === currentUserId;
+  let creatorMark = language === 'pl' ? 'T' : 'C';
+  let youMark = language === 'pl' ? 'TY' : 'YOU';
   
   return (
     <span>
       {fullName}
-      {isCreator && <span style={{ color: '#FF6B6B', fontWeight: 'bold' }}> (T)</span>}
-      {isCurrentUser && <span style={{ color: '#FFD700', fontWeight: 'bold' }}> (TY)</span>}
+      {isCreator && <span style={{ color: '#FF6B6B', fontWeight: 'bold' }}> ({creatorMark})</span>}
+      {isCurrentUser && <span style={{ color: '#FFD700', fontWeight: 'bold' }}> ({youMark})</span>}
     </span>
   );
 };
 
 // Function to calculate the best time for the event
-const calculateBestTime = (participants) => {
+const calculateBestTime = (participants, t) => {
   const days = ['Pon', 'Wt', 'Śr', 'Czw', 'Pią', 'Sob', 'Niedz'];
-  const dayNames = ['Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota', 'Niedziela'];
+  const dayNames = [t('monday'), t('tuesday'), t('wednesday'), t('thursday'), t('friday'), t('saturday'), t('sunday')];
   
   console.log('calculateBestTime - participants:', JSON.stringify(participants, null, 2));
   
@@ -291,7 +437,7 @@ const calculateBestTime = (participants) => {
   console.log('calculateBestTime - declaredParticipants:', JSON.stringify(declaredParticipants, null, 2));
   
   if (declaredParticipants.length === 0) {
-    return 'Brak zadeklarowanych uczestników';
+    return t('noDeclaredParticipants');
   }
   
   // For each day check availability and find common time slots
@@ -337,10 +483,10 @@ const calculateBestTime = (participants) => {
   });
   
   if (!bestDay.commonTimeRange) {
-    return 'Brak wspólnego czasu';
+    return t('noCommonTime');
   }
   
-  return `${bestDay.day}, ${bestDay.commonTimeRange} (${bestDay.availableCount}/${bestDay.totalCount} uczestników)`;
+  return `${bestDay.day}, ${bestDay.commonTimeRange} (${bestDay.availableCount}/${bestDay.totalCount} ${t('participantsCount')})`;
 };
 
 // Function to find common time range for a specific day
@@ -473,6 +619,20 @@ const styles = {
     marginBottom: '16px',
     fontSize: '14px'
   },
+  copyNotification: {
+    position: 'fixed',
+    top: '20px',
+    right: '20px',
+    background: '#4be36b',
+    color: '#222',
+    padding: '12px 20px',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: 'bold',
+    zIndex: 1000,
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+    animation: 'slideInRight 0.3s ease-out'
+  },
   deleteBtn: {
     width: '100%',
     background: '#e36b6b',
@@ -517,7 +677,10 @@ const styles = {
   person: {
     fontSize: '14px',
     color: '#ddd',
-    marginBottom: '4px'
+    marginBottom: '4px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between'
   },
   bestTime: {
     color: '#ccc',
@@ -611,6 +774,35 @@ const styles = {
     boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
     minWidth: '300px',
     textAlign: 'center'
+  },
+  filterContainer: {
+    marginBottom: '10px',
+    padding: '0 10px'
+  },
+  filterInput: {
+    width: '100%',
+    padding: '10px',
+    borderRadius: '8px',
+    border: '1px solid #444',
+    background: '#333',
+    color: '#fff',
+    fontSize: '14px',
+    boxSizing: 'border-box'
+  },
+  participantsList: {
+    maxHeight: '200px',
+    overflowY: 'auto',
+    paddingRight: '5px'
+  },
+  removeButton: {
+    background: '#e36b6b',
+    color: '#222',
+    fontWeight: 'bold',
+    border: 'none',
+    borderRadius: '4px',
+    padding: '2px 6px',
+    fontSize: '11px',
+    cursor: 'pointer'
   }
 };
 

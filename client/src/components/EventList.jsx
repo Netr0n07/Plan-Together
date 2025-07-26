@@ -1,9 +1,12 @@
 // Event list component
 import React from 'react';
+import { useLanguage } from '../locales/LanguageContext';
 
 const EventList = ({ events }) => {
+  const { t } = useLanguage();
+  
   if (events.length === 0) {
-    return <p>Brak wydarzeń do wyświetlenia.</p>;
+    return <p>{t('noEventsToDisplay')}</p>;
   }
 
   return (

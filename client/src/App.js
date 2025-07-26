@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { LanguageProvider } from './locales/LanguageContext';
 import Register from './pages/Register';
 import Login from './pages/Login';
 import Onboarding from './pages/Onboarding';
@@ -10,17 +11,19 @@ import EventDetails from './pages/EventDetails';
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Onboarding />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/faq" element={<Faq />} />
-        <Route path="/create-event" element={<CreateEvent />} />
-        <Route path="/event/:id" element={<EventDetails />} />
-      </Routes>
-    </Router>
+    <LanguageProvider>
+      <Router>
+        <Routes>
+          <Route path="/" element={<Onboarding />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/faq" element={<Faq />} />
+          <Route path="/create-event" element={<CreateEvent />} />
+          <Route path="/event/:id" element={<EventDetails />} />
+        </Routes>
+      </Router>
+    </LanguageProvider>
   );
 }
 

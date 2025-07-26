@@ -1,48 +1,50 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../locales/LanguageContext';
 
 const Faq = () => {
   const navigate = useNavigate();
+  const { t, language } = useLanguage();
   return (
     <div style={styles.wrapper}>
       <div style={styles.container}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
-          <button style={styles.backBtn} onClick={() => navigate('/dashboard')}>POWRÓT</button>
+          <button style={styles.backBtn} onClick={() => navigate('/dashboard')}>{t('back')}</button>
         </div>
-        <h2 style={styles.heading}>Jak utworzyć wydarzenie?</h2>
+        <h2 style={styles.heading}>{t('howToCreateEvent')}</h2>
         <ol style={styles.list}>
-          <li>Zaloguj się lub utwórz konto jeśli jeszcze go nie posiadasz.</li>
-          <li>Kliknij „+ UTWÓRZ WYDARZENIE”.</li>
-          <li>Wpisz nazwę i opis, a potem udostępnij link.</li>
+          <li>{t('howToCreateEventStep1')}</li>
+          <li>{t('howToCreateEventStep2')}</li>
+          <li>{t('howToCreateEventStep3')}</li>
         </ol>
-        <h2 style={styles.heading}>Jak dołączyć do wydarzenia?</h2>
+        <h2 style={styles.heading}>{t('howToJoinEvent')}</h2>
         <ol style={styles.list}>
-          <li>Zaloguj się lub utwórz konto jeśli jeszcze go nie posiadasz.</li>
-          <li>Kliknij „&gt; DOŁĄCZ DO WYDARZENIA”.</li>
-          <li>Przekopiuj otrzymany link.</li>
+          <li>{t('howToJoinEventStep1')}</li>
+          <li>{t('howToJoinEventStep2')}</li>
+          <li>{t('howToJoinEventStep3')}</li>
         </ol>
-        <h2 style={styles.heading}>Jak działa wybór terminu?</h2>
-        <p style={styles.text}>Aplikacja analizuje grafiki uczestników i wybiera najlepszy wspólny przedział.</p>
+        <h2 style={styles.heading}>{t('howDateSelectionWorks')}</h2>
+        <p style={styles.text}>{t('dateSelectionExplanation')}</p>
         
-        <h2 style={styles.heading}>Jak wypełnić swoją dostępność?</h2>
+        <h2 style={styles.heading}>{t('howToFillAvailability')}</h2>
         <ol style={styles.list}>
-          <li>Przejdź do szczegółów wydarzenia.</li>
-          <li>Kliknij przycisk „MOJA DOSTĘPNOŚĆ".</li>
-          <li>Zaznacz dni, w które jesteś całkowicie wolny lub zajęty.</li>
-          <li>Lub podaj konkretne godziny dostępności dla każdego dnia.</li>
-          <li>Kliknij „ZAPISZ" aby zapisać swój harmonogram.</li>
+          <li>{t('howToFillAvailabilityStep1')}</li>
+          <li>{t('howToFillAvailabilityStep2')}</li>
+          <li>{t('howToFillAvailabilityStep3')}</li>
+          <li>{t('howToFillAvailabilityStep4')}</li>
+          <li>{t('howToFillAvailabilityStep5')}</li>
         </ol>
         
-        <h2 style={styles.heading}>Co oznaczają oznaczenia przy nazwach?</h2>
+        <h2 style={styles.heading}>{t('whatDoDesignationsMean')}</h2>
         <ul style={styles.list}>
-          <li><span style={{color: '#FF6B6B', fontWeight: 'bold'}}>(T)</span> - Twórca wydarzenia</li>
-          <li><span style={{color: '#FFD700', fontWeight: 'bold'}}>(TY)</span> - Ty (aktualny użytkownik)</li>
+          <li><span style={{color: '#FF6B6B', fontWeight: 'bold'}}>{language === 'pl' ? '(T)' : '(C)'}</span> - {t('designationCreatorShort')}</li>
+          <li><span style={{color: '#FFD700', fontWeight: 'bold'}}>{language === 'pl' ? '(TY)' : '(YOU)'}</span> - {t('designationYouShort')}</li>
         </ul>
-        <h2 style={styles.heading}>Czy mogę usunąć wydarzenie?</h2>
-        <p style={styles.text}>Tak, o ile jesteś osobą, która utworzyła dane wydarzenie.</p>
+        <h2 style={styles.heading}>{t('canIDeleteEvent')}</h2>
+        <p style={styles.text}>{t('deleteEventExplanation')}</p>
         <ol style={styles.list}>
-          <li>Przejdź do szczegółów wydarzenia.</li>
-          <li>Kliknij przycisk „USUŃ WYDARZENIE" i potwierdź.</li>
+          <li>{t('deleteEventStep1')}</li>
+          <li>{t('deleteEventStep2')}</li>
         </ol>
       </div>
     </div>

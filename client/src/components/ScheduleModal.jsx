@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useLanguage } from '../locales/LanguageContext';
 
 const days = ['Pon', 'Wt', 'Śr', 'Czw', 'Pią', 'Sob', 'Niedz'];
 
 const ScheduleModal = ({ onSave, onCancel, onClear, existingSchedule }) => {
+  const { t } = useLanguage();
   const userEmail = sessionStorage.getItem('userEmail');
   const eventId = window.location.pathname.split('/').pop();
 
@@ -122,7 +124,7 @@ const ScheduleModal = ({ onSave, onCancel, onClear, existingSchedule }) => {
         background: '#222', padding: '2rem', borderRadius: 16,
         width: 350, color: '#fff'
       }}>
-        <h3 style={{ fontWeight: 'bold', marginBottom: 20, textAlign: 'center' }}>Podaj swoją dostępność:</h3>
+        <h3 style={{ fontWeight: 'bold', marginBottom: 20, textAlign: 'center' }}>{t('provideYourAvailability')}</h3>
 
         {days.map(day => (
           <div key={day} style={{ marginBottom: 14 }}>
@@ -132,14 +134,14 @@ const ScheduleModal = ({ onSave, onCancel, onClear, existingSchedule }) => {
                 type="checkbox"
                 checked={schedule[day].fullFree}
                 onChange={() => handleCheckboxChange(day, 'fullFree')}
-              /> cała wolna
+              /> {t('allFree')}
             </label>
             <label>
               <input
                 type="checkbox"
                 checked={schedule[day].fullBusy}
                 onChange={() => handleCheckboxChange(day, 'fullBusy')}
-              /> cała zajęta
+              /> {t('allBusy')}
             </label>
             <div style={{ marginTop: 4 }}>
               <input
@@ -149,7 +151,7 @@ const ScheduleModal = ({ onSave, onCancel, onClear, existingSchedule }) => {
                 disabled={schedule[day].fullFree || schedule[day].fullBusy}
                 style={{ marginRight: 6 }}
               />
-              do
+              {t('to')}
               <input
                 type="time"
                 value={schedule[day].to}
@@ -175,8 +177,8 @@ const ScheduleModal = ({ onSave, onCancel, onClear, existingSchedule }) => {
               padding: '0.5rem',
               cursor: isValid ? 'pointer' : 'not-allowed'
             }}
-          >
-            ZAPISZ
+                      >
+            {t('save')}
           </button>
           <button
             onClick={onCancel}
@@ -191,7 +193,7 @@ const ScheduleModal = ({ onSave, onCancel, onClear, existingSchedule }) => {
               cursor: 'pointer'
             }}
           >
-            ANULUJ
+            {t('cancel')}
           </button>
           <button
             onClick={handleClear}
@@ -205,8 +207,8 @@ const ScheduleModal = ({ onSave, onCancel, onClear, existingSchedule }) => {
               padding: '0.5rem',
               cursor: 'pointer'
             }}
-          >
-            WYCZYŚĆ
+                      >
+            {t('clear')}
           </button>
         </div>
       </div>
