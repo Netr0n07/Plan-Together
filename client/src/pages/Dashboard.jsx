@@ -5,38 +5,53 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [modal, setModal] = useState({ open: false, message: '' });
   const [events, setEvents] = useState([]);
-  const userEmail = localStorage.getItem('userEmail');
   const [showJoinModal, setShowJoinModal] = useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [leaveEventId, setLeaveEventId] = useState(null);
+  const [leaveEventTitle, setLeaveEventTitle] = useState('');
   const [joinLink, setJoinLink] = useState('');
   const [joinError, setJoinError] = useState('');
 
+  const token = sessionStorage.getItem('token');
+
   useEffect(() => {
-    const token = localStorage.getItem('token');
     if (!token) {
       navigate('/login');
       return;
     }
-    if (!userEmail) {
-      setEvents([]);
-      return;
-    }
-    const eventsKey = `events_${userEmail}`;
-    const stored = JSON.parse(localStorage.getItem(eventsKey) || '[]');
-    setEvents(stored);
-  }, []);
+  
+    const fetchEvents = async () => {
+      try {
+        const res = await fetch('/api/events', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+    
+        const text = await res.text();
+        console.log('ODPOWIEDŹ BACKENDU:', text);
+    
+        if (!res.ok) {
+          throw new Error(text || 'Błąd pobierania wydarzeń');
+        }
+    
+        const data = JSON.parse(text);
+        setEvents(data);
+      } catch (err) {
+        console.error('Błąd pobierania wydarzeń:', err.message);
+        setEvents([]);
+      }
+    };    
+  
+    fetchEvents();
+  }, [token, navigate]);  
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('userId');
     navigate('/login');
   };
 
-  const handleHelp = () => {
-    navigate('/faq');
-  };
-
-  const handleCreateEvent = () => {
-    navigate('/create-event');
-  };
+  const handleHelp = () => navigate('/faq');
+  const handleCreateEvent = () => navigate('/create-event');
 
   const handleJoinEvent = () => {
     setShowJoinModal(true);
@@ -44,88 +59,66 @@ const Dashboard = () => {
     setJoinError('');
   };
 
-  const handleLeaveEvent = (id) => {
-    if (!userEmail) return;
-    const eventsKey = `events_${userEmail}`;
-    const updated = events.filter(ev => ev.id !== id);
-    setEvents(updated);
-    localStorage.setItem(eventsKey, JSON.stringify(updated));
+  const showLeaveConfirmModal = (id, title) => {
+    setLeaveEventId(id);
+    setLeaveEventTitle(title);
+    setShowLeaveConfirm(true);
+  };
+
+  const handleLeaveEvent = async () => {
+    try {
+      await fetch(`/api/events/${leaveEventId}/leave`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // Remove schedule from sessionStorage
+      const userEmail = sessionStorage.getItem('userEmail');
+      const savedKey = `schedule_${leaveEventId}_${userEmail}`;
+      sessionStorage.removeItem(savedKey);
+      
+      setEvents(prev => prev.filter(ev => ev._id !== leaveEventId));
+      setShowLeaveConfirm(false);
+      
+      // Show success notification
+      setModal({ open: true, message: `✓ Opuszczono wydarzenie "${leaveEventTitle}"` });
+      
+    } catch (err) {
+      console.error('Błąd opuszczania wydarzenia:', err);
+      setModal({ open: true, message: '✗ Błąd opuszczania wydarzenia. Spróbuj ponownie.' });
+    }
   };
 
   const closeModal = () => setModal({ open: false, message: '' });
-
   const closeJoinModal = () => {
     setShowJoinModal(false);
     setJoinLink('');
     setJoinError('');
   };
 
-  const handleJoinSubmit = () => {
+  const handleJoinSubmit = async () => {
     setJoinError('');
-    // Prosta walidacja linku
-    const match = joinLink.match(/plantogether\.app\/(\d+)/);
+    const match = joinLink.match(/plantogether\.app\/(\w+)/);
     if (!joinLink || !match) {
       setJoinError('Niepoprawny link do wydarzenia.');
       return;
     }
     const eventId = match[1];
-    // Szukamy wydarzenia w bazie twórcy (symulacja: szukamy po wszystkich localStorage)
-    let foundEvent = null;
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('events_')) {
-        const arr = JSON.parse(localStorage.getItem(key) || '[]');
-        const ev = arr.find(e => String(e.id) === eventId);
-        if (ev) {
-          foundEvent = ev;
-          break;
-        }
-      }
+
+    try {
+      const res = await fetch(`/api/events/${eventId}/join`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Błąd dołączania');
+
+      setEvents(prev => [...prev, data.event]);
+      setShowJoinModal(false);
+    } catch (err) {
+      console.error('Błąd dołączania do wydarzenia:', err);
+      setJoinError(err.message || 'Błąd serwera.');
     }
-    if (!foundEvent) {
-      setJoinError('Nie znaleziono wydarzenia o podanym linku.');
-      return;
-    }
-    if (foundEvent.creator === userEmail) {
-      setJoinError('Jesteś twórcą tego wydarzenia.');
-      return;
-    }
-    // Sprawdź, czy już dołączono
-    const eventsKey = `events_${userEmail}`;
-    const myEvents = JSON.parse(localStorage.getItem(eventsKey) || '[]');
-    if (myEvents.some(e => String(e.id) === eventId)) {
-      setJoinError('Już dołączyłeś do tego wydarzenia.');
-      return;
-    }
-    // Dodaj wydarzenie do listy użytkownika i zaktualizuj joinedUsers u twórcy
-    const userName = localStorage.getItem('userName');
-    const userSurname = localStorage.getItem('userSurname');
-    // 1. Zaktualizuj joinedUsers u twórcy
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('events_')) {
-        const arr = JSON.parse(localStorage.getItem(key) || '[]');
-        const idx = arr.findIndex(e => String(e.id) === eventId);
-        if (idx !== -1) {
-          // Dodaj joinedUsers jeśli nie istnieje
-          if (!arr[idx].joinedUsers) arr[idx].joinedUsers = [];
-          // Sprawdź, czy już jest na liście
-          if (!arr[idx].joinedUsers.some(u => u.email === userEmail)) {
-            arr[idx].joinedUsers.push({ email: userEmail, name: userName, surname: userSurname });
-            localStorage.setItem(key, JSON.stringify(arr));
-          }
-        }
-      }
-    }
-    // 2. Dodaj wydarzenie do listy użytkownika (z joinedUsers)
-    const updatedEvent = { ...foundEvent };
-    if (!updatedEvent.joinedUsers) updatedEvent.joinedUsers = [];
-    if (!updatedEvent.joinedUsers.some(u => u.email === userEmail)) {
-      updatedEvent.joinedUsers.push({ email: userEmail, name: userName, surname: userSurname });
-    }
-    localStorage.setItem(eventsKey, JSON.stringify([...myEvents, updatedEvent]));
-    setEvents([...myEvents, updatedEvent]);
-    setShowJoinModal(false);
   };
 
   return (
@@ -142,17 +135,22 @@ const Dashboard = () => {
           ) : (
             <ul style={{ listStyle: 'disc', paddingLeft: 18, margin: 0 }}>
               {events.map(ev => (
-                <li key={ev.id} style={{ marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span>{ev.name}</span>
+                <li key={ev._id} style={{ marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>{ev.title}</span>
                   <span>
                     <button
-                      style={{ background: '#3ad1c6', color: '#222', border: 'none', borderRadius: 6, padding: '2px 10px', fontWeight: 'bold', cursor: 'pointer', marginRight: ev.creator !== userEmail ? 6 : 0 }}
-                      onClick={() => navigate(`/event/${ev.id}`)}
+                      style={{ background: '#3ad1c6', color: '#222', border: 'none', borderRadius: 6, padding: '2px 10px', fontWeight: 'bold', cursor: 'pointer', marginRight: ev.creator !== getMyId() ? 6 : 0 }}
+                      onClick={() => navigate(`/event/${ev._id}`)}
                     >
                       Edytuj
                     </button>
-                    {ev.creator !== userEmail && (
-                      <button style={{ background: '#e36b6b', color: '#222', border: 'none', borderRadius: 6, padding: '2px 10px', fontWeight: 'bold', cursor: 'pointer' }} onClick={() => handleLeaveEvent(ev.id)}>Opuść</button>
+                    {ev.creator !== getMyId() && (
+                      <button
+                        style={{ background: '#e36b6b', color: '#222', border: 'none', borderRadius: 6, padding: '2px 10px', fontWeight: 'bold', cursor: 'pointer' }}
+                        onClick={() => showLeaveConfirmModal(ev._id, ev.title)}
+                      >
+                        Opuść
+                      </button>
                     )}
                   </span>
                 </li>
@@ -166,6 +164,7 @@ const Dashboard = () => {
           <button onClick={handleHelp} style={styles.iconBtnRed}>❓ Pomoc</button>
         </div>
       </div>
+
       {modal.open && (
         <div style={modalStyles.overlay}>
           <div style={modalStyles.modal}>
@@ -174,24 +173,36 @@ const Dashboard = () => {
           </div>
         </div>
       )}
+
       {showJoinModal && (
-        <div style={{
-          position: 'fixed', left: 0, top: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.5)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
-        }}>
-          <div style={{ background: '#a16be3', padding: '2rem', borderRadius: 16, minWidth: 300, textAlign: 'center', boxShadow: '0 0 15px rgba(0,0,0,0.2)', position: 'relative' }}>
+        <div style={modalStyles.overlay}>
+          <div style={modalStyles.modal}>
             <div style={{ fontWeight: 'bold', marginBottom: 10 }}>Wklej Link do wydarzenia</div>
             <input
               type="text"
               value={joinLink}
               onChange={e => setJoinLink(e.target.value)}
-              style={{ width: '100%', marginBottom: 10, padding: 8, borderRadius: 6, border: '1px solid #aaa', fontSize: 15, background: '#fff', textAlign: 'center' }}
+              style={modalStyles.input}
               placeholder="https://plantogether.app/123456"
             />
-            {joinError && <div style={{ color: 'red', marginBottom: 10 }}>{joinError}</div>}
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10 }}>
-              <button onClick={handleJoinSubmit} style={{ background: '#4be36b', color: '#222', border: 'none', borderRadius: 6, padding: '0.5rem 1.5rem', fontWeight: 'bold', fontSize: 20, cursor: 'pointer' }}>✔️</button>
-              <button onClick={closeJoinModal} style={{ background: '#e36b6b', color: '#222', border: 'none', borderRadius: 6, padding: '0.5rem 1.5rem', fontWeight: 'bold', fontSize: 20, cursor: 'pointer' }}>❌</button>
+            {joinError && <div style={modalStyles.error}>{joinError}</div>}
+            <div style={modalStyles.buttonsRow}>
+                              <button onClick={handleJoinSubmit} style={modalStyles.confirmBtn}>✓</button>
+              <button onClick={closeJoinModal} style={modalStyles.cancelBtn}>✗</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showLeaveConfirm && (
+        <div style={modalStyles.overlay}>
+          <div style={modalStyles.modal}>
+            <div style={{ fontWeight: 'bold', marginBottom: 10 }}>
+              Czy na pewno chcesz opuścić wydarzenie "{leaveEventTitle}"?
+            </div>
+            <div style={modalStyles.buttonsRow}>
+              <button onClick={handleLeaveEvent} style={modalStyles.confirmBtn}>Tak</button>
+              <button onClick={() => setShowLeaveConfirm(false)} style={modalStyles.cancelBtn}>Nie</button>
             </div>
           </div>
         </div>
@@ -200,101 +211,48 @@ const Dashboard = () => {
   );
 };
 
+const getMyId = () => sessionStorage.getItem('userId');
+
+  // Styles at the end
 const styles = {
-  wrapper: {
-    backgroundColor: '#1a1a1a',
-    minHeight: '100vh',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  container: {
-    backgroundColor: '#fff',
-    padding: '2rem',
-    borderRadius: '6px',
-    width: '320px',
-    textAlign: 'center'
-  },
-  createBtn: {
-    backgroundColor: '#90ee90',
-    padding: '0.5rem',
-    width: '100%',
-    borderRadius: '8px',
-    marginBottom: '1rem',
-    fontWeight: 'bold',
-    cursor: 'pointer'
-  },
-  joinBtn: {
-    backgroundColor: '#ee82ee',
-    padding: '0.5rem',
-    width: '100%',
-    borderRadius: '8px',
-    marginBottom: '1.5rem',
-    fontWeight: 'bold',
-    cursor: 'pointer'
-  },
-  heading: {
-    textAlign: 'left',
-    marginBottom: '0.5rem'
-  },
-  eventBox: {
-    backgroundColor: '#999',
-    borderRadius: '4px',
-    minHeight: '250px',
-    padding: '1rem',
-    marginBottom: '1.5rem',
-    textAlign: 'left'
-  },
-  bottomButtons: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    fontSize: '0.9rem'
-  },
-  iconBtn: {
-    background: 'none',
-    border: 'none',
-    color: '#000',
-    cursor: 'pointer'
-  },
-  iconBtnRed: {
-    background: 'none',
-    border: 'none',
-    color: 'red',
-    cursor: 'pointer'
-  }
+  wrapper: { minHeight: '100vh', background: '#111', color: 'white', padding: '2rem' },
+  container: { maxWidth: 700, margin: '0 auto', background: '#222', padding: '2rem', borderRadius: 16 },
+  createBtn: { background: '#4be36b', color: '#222', padding: '1rem 2rem', fontSize: 18, border: 'none', borderRadius: 10, fontWeight: 'bold', marginBottom: 10, cursor: 'pointer', display: 'block', width: '100%' },
+  joinBtn: { background: '#a16be3', color: '#222', padding: '1rem 2rem', fontSize: 18, border: 'none', borderRadius: 10, fontWeight: 'bold', marginBottom: 20, cursor: 'pointer', display: 'block', width: '100%' },
+  heading: { fontSize: 22, marginBottom: 10 },
+  eventBox: { background: '#333', padding: 20, borderRadius: 10, minHeight: 100 },
+  bottomButtons: { display: 'flex', justifyContent: 'space-between', marginTop: 20 },
+  iconBtn: { background: '#eee', color: '#111', border: 'none', borderRadius: 6, padding: '0.5rem 1rem', fontWeight: 'bold', cursor: 'pointer' },
+  iconBtnRed: { background: '#e36b6b', color: '#111', border: 'none', borderRadius: 6, padding: '0.5rem 1rem', fontWeight: 'bold', cursor: 'pointer' }
 };
 
 const modalStyles = {
   overlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    width: '100vw',
-    height: '100vh',
-    background: 'rgba(0,0,0,0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
+    position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+    background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
   },
   modal: {
-    background: '#fff',
-    padding: '2rem',
-    borderRadius: '8px',
-    minWidth: '250px',
-    textAlign: 'center',
-    boxShadow: '0 0 15px rgba(0,0,0,0.2)',
+    background: '#a16be3', padding: '2rem', borderRadius: 16, minWidth: 300,
+    textAlign: 'center', boxShadow: '0 0 15px rgba(0,0,0,0.2)', position: 'relative'
+  },
+  input: {
+    width: '100%', marginBottom: 10, padding: 8, borderRadius: 6,
+    border: '1px solid #aaa', fontSize: 15, background: '#fff', textAlign: 'center'
+  },
+  error: { color: 'red', marginBottom: 10 },
+  buttonsRow: { display: 'flex', justifyContent: 'space-between', marginTop: 10 },
+  confirmBtn: {
+    background: '#4be36b', color: '#222', border: 'none', borderRadius: 6,
+    padding: '0.5rem 1.5rem', fontWeight: 'bold', fontSize: 20, cursor: 'pointer'
+  },
+  cancelBtn: {
+    background: '#e36b6b', color: '#222', border: 'none', borderRadius: 6,
+    padding: '0.5rem 1.5rem', fontWeight: 'bold', fontSize: 20, cursor: 'pointer'
   },
   button: {
-    marginTop: '1rem',
-    padding: '0.5rem 1.5rem',
-    background: '#009dff',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '5px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-  },
+    background: '#fff', color: '#222', border: 'none', borderRadius: 6,
+    padding: '0.5rem 1rem', fontWeight: 'bold', cursor: 'pointer'
+  }
 };
 
 export default Dashboard;

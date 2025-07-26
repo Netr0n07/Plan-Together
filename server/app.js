@@ -9,11 +9,17 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Trasy API
+// Set Content-Type for all responses
+app.use((req, res, next) => {
+  res.setHeader('Content-Type', 'application/json');
+  next();
+});
+
+// API routes
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/events', require('./routes/eventRoutes'));
 
-// Połączenie z bazą
+// Database connection
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     app.listen(process.env.PORT || 5000, () => {

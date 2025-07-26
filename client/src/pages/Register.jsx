@@ -24,8 +24,8 @@ const Register = () => {
     e.preventDefault();
     try {
       await axios.post('http://localhost:5000/api/users/register', formData);
-      localStorage.setItem('userName', formData.name);
-      localStorage.setItem('userSurname', formData.surname);
+      sessionStorage.setItem('userName', formData.name);
+      sessionStorage.setItem('userSurname', formData.surname);
       navigate('/login');
     } catch (err) {
       console.error(err);

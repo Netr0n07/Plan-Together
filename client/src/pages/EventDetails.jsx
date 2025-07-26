@@ -5,69 +5,80 @@ import ScheduleModal from '../components/ScheduleModal';
 const EventDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const userEmail = localStorage.getItem('userEmail');
+  const token = sessionStorage.getItem('token');
+  const userId = sessionStorage.getItem('userId');
 
   const [event, setEvent] = useState(null);
-  const [participants, setParticipants] = useState([]);
-  const [userSchedule, setUserSchedule] = useState({});
-  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [copyMsg, setCopyMsg] = useState('');
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [error, setError] = useState('');
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const [showConfirmLeave, setShowConfirmLeave] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
 
   useEffect(() => {
-    if (!userEmail || !id) return;
-
-    // Szukamy wydarzenia: najpierw u twórcy, potem u siebie
-    const allPossibleCreators = [userEmail, ...(JSON.parse(localStorage.getItem('allUsers') || '[]'))];
-    let foundEvent = null;
-    for (const creator of allPossibleCreators) {
-      const creatorEvents = JSON.parse(localStorage.getItem(`events_${creator}`) || '[]');
-      const match = creatorEvents.find(ev => String(ev.id) === String(id));
-      if (match) {
-        foundEvent = match;
-        break;
-      }
+    if (!token || !userId) {
+      navigate('/login');
+      return;
     }
 
-    if (!foundEvent) return;
+    fetch(`/api/events/${id}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(setEvent)
+      .catch(err => {
+        console.error('Błąd pobierania wydarzenia:', err);
+        setError('Nie znaleziono wydarzenia');
+      })
+      .finally(() => setLoading(false));
+  }, [id, token, userId, navigate]);
 
-    setEvent(foundEvent);
-
-    // Pobierz grafik użytkownika
-    const saved = localStorage.getItem(`schedule_${id}_${userEmail}`);
-    if (saved) setUserSchedule(JSON.parse(saved));
-
-    // Zbierz unikalnych uczestników
-    const all = [
-      { email: foundEvent.creator, name: foundEvent.creatorName || '', surname: foundEvent.creatorSurname || '' },
-      ...(foundEvent.joinedUsers || [])
-    ];
-
-    const unique = all.filter((u, idx, arr) =>
-      arr.findIndex(v => v.email === u.email) === idx
-    );
-
-    const parts = unique.map(u => ({
-      ...u,
-      display: `${u.name || ''} ${u.surname || ''}`.trim(),
-      declared: !!localStorage.getItem(`schedule_${id}_${u.email}`),
-      isMe: u.email === userEmail,
-      isCreator: u.email === foundEvent.creator
-    }));
-
-    setParticipants(parts);
-  }, [id, userEmail]);
-
-  const updateSchedule = (data) => {
-    localStorage.setItem(`schedule_${id}_${userEmail}`, JSON.stringify(data));
-    setUserSchedule(data);
-    setShowScheduleModal(false);
+  const handleDelete = async () => {
+    try {
+      await fetch(`/api/events/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      navigate('/dashboard');
+    } catch (err) {
+      console.error('Błąd usuwania wydarzenia:', err);
+    }
   };
 
-  const clearSchedule = () => {
-    localStorage.removeItem(`schedule_${id}_${userEmail}`);
-    setUserSchedule({});
-    setShowScheduleModal(false);
+  const handleLeave = async () => {
+    try {
+      await fetch(`/api/events/${id}/leave`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // Show success notification before redirect
+      setNotification({ 
+        show: true, 
+        message: `✓ Opuszczono wydarzenie "${event.title}"`, 
+        type: 'success' 
+      });
+      
+      // Redirect after 2 seconds so user can see the notification
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 2000);
+      
+    } catch (err) {
+      console.error('Błąd opuszczania wydarzenia:', err);
+      setNotification({ 
+        show: true, 
+        message: '✗ Błąd opuszczania wydarzenia. Spróbuj ponownie.', 
+        type: 'error' 
+      });
+      
+      // Hide error notification after 5 seconds
+      setTimeout(() => {
+        setNotification({ show: false, message: '', type: '' });
+      }, 5000);
+    }
   };
 
   const handleCopy = () => {
@@ -76,181 +87,531 @@ const EventDetails = () => {
     setTimeout(() => setCopyMsg(''), 2000);
   };
 
-  const confirmDelete = () => {
-    const events = JSON.parse(localStorage.getItem(`events_${userEmail}`) || '[]');
-    const updated = events.filter(ev => String(ev.id) !== String(id));
-    localStorage.setItem(`events_${userEmail}`, JSON.stringify(updated));
-    localStorage.removeItem(`schedule_${id}_${userEmail}`);
-    setShowDeleteModal(false);
-    navigate('/dashboard');
-  };
-
-  const handleLeave = () => {
-    const allCreators = [userEmail, ...(JSON.parse(localStorage.getItem('allUsers') || '[]'))];
-    let creator = null;
-    let updatedEvent = null;
-
-    for (const c of allCreators) {
-      const events = JSON.parse(localStorage.getItem(`events_${c}`) || '[]');
-      const match = events.find(ev => String(ev.id) === String(id));
-      if (match) {
-        creator = c;
-        updatedEvent = { ...match };
-        updatedEvent.joinedUsers = (updatedEvent.joinedUsers || []).filter(u => u.email !== userEmail);
-        const updatedList = events.map(ev => String(ev.id) === String(id) ? updatedEvent : ev);
-        localStorage.setItem(`events_${creator}`, JSON.stringify(updatedList));
-        break;
-      }
-    }
-
-    localStorage.removeItem(`schedule_${id}_${userEmail}`);
-    navigate('/dashboard');
-  };
-
-  const findBestTime = () => {
-    const counter = {};
-    const days = ['Pon', 'Wt', 'Śr', 'Czw', 'Pią', 'Sob', 'Niedz'];
-    days.forEach(day => {
-      for (let h = 0; h < 24; h++) {
-        counter[`${day}-${h}`] = 0;
-      }
-    });
-
-    let hasAny = false;
-
-    participants.forEach(p => {
-      const sched = localStorage.getItem(`schedule_${id}_${p.email}`);
-      if (!sched) return;
-
-      const parsed = JSON.parse(sched);
-      hasAny = true;
-
-      days.forEach(day => {
-        const entry = parsed[day];
-        if (!entry) return;
-
-        if (entry.fullFree) {
-          for (let h = 0; h < 24; h++) counter[`${day}-${h}`]++;
-        } else if (!entry.fullBusy && entry.from && entry.to) {
-          const start = parseInt(entry.from.split(':')[0]);
-          const end = parseInt(entry.to.split(':')[0]);
-          for (let h = start; h < end; h++) counter[`${day}-${h}`]++;
-        }
+  const handleSaveSchedule = async (schedule) => {
+    try {
+      const response = await fetch(`/api/events/${id}/availability`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ availability: schedule })
       });
-    });
 
-    if (!hasAny) return null;
+      if (!response.ok) {
+        throw new Error('Błąd zapisywania harmonogramu');
+      }
 
-    const max = Math.max(...Object.values(counter));
-    const best = Object.keys(counter).find(k => counter[k] === max);
-    if (!best) return null;
-
-    const [day, hour] = best.split('-');
-    const range = `${String(hour).padStart(2, '0')}:00–${String(Number(hour) + 1).padStart(2, '0')}:00`;
-    return { day, range };
+      // Refresh event data after saving schedule
+      const updatedEvent = await fetch(`/api/events/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      }).then(res => res.json());
+      
+      setEvent(updatedEvent);
+      setShowScheduleModal(false);
+      console.log('Harmonogram został zapisany pomyślnie');
+      console.log('Updated event data:', updatedEvent);
+      
+      // Also update sessionStorage with the saved schedule
+      const userEmail = sessionStorage.getItem('userEmail');
+      const savedKey = `schedule_${id}_${userEmail}`;
+      sessionStorage.setItem(savedKey, JSON.stringify(schedule));
+      console.log('Updated sessionStorage with saved schedule:', savedKey);
+      
+      // Show internal success notification
+      setNotification({ show: true, message: '✓ Harmonogram został pomyślnie zapisany!', type: 'success' });
+      
+      // Hide notification after 3 seconds
+      setTimeout(() => {
+        setNotification({ show: false, message: '', type: '' });
+      }, 3000);
+    } catch (error) {
+      console.error('Błąd zapisywania harmonogramu:', error);
+      setNotification({ show: true, message: '✗ Błąd zapisywania harmonogramu. Spróbuj ponownie.', type: 'error' });
+      
+      // Hide notification after 5 seconds for errors
+      setTimeout(() => {
+        setNotification({ show: false, message: '', type: '' });
+      }, 5000);
+    }
   };
 
-  const bestTime = findBestTime();
+  if (loading) return <div style={styles.center}>Ładowanie...</div>;
+  if (!event || error) return <div style={styles.center}>Nie znaleziono wydarzenia.</div>;
 
-  if (!event) {
-    return (
-      <div style={{ padding: 40, color: '#fff', textAlign: 'center' }}>
-        Nie znaleziono wydarzenia.
-      </div>
-    );
-  }
+  console.log('Event data:', event);
+  console.log('Event participants:', event.participants);
+  console.log('Current userId:', userId);
 
-  const declared = participants.filter(p => p.declared);
-  const undeclared = participants.filter(p => !p.declared);
+  const isCreator = event.creator?._id === userId || event.creator === userId;
+  const participants = event.participants || [];
+  const declared = participants.filter(p => p.availability && Object.keys(p.availability).length > 0);
+  const undeclared = participants.filter(p => !p.availability || Object.keys(p.availability).length === 0);
+  const participantIds = participants.map(p => p.user?._id);
+  const isParticipant = participantIds.includes(userId);
 
   return (
-    <div style={{ background: '#222', minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-      <div style={{ background: '#000', padding: '2rem', borderRadius: '8px', width: 400, textAlign: 'center', position: 'relative' }}>
-        <h2 style={{ fontWeight: 'bold', marginBottom: 18, color: '#fff' }}>[{event.name}]</h2>
+    <div style={styles.wrapper}>
+      <div style={styles.header}>Informacje o wydarzeniu</div>
+      <div style={styles.box}>
+        <h2 style={styles.title}>{event.title}</h2>
 
-        <div style={{ marginBottom: 10, fontWeight: 'bold', color: '#fff' }}>Link do wydarzenia:</div>
+        <div style={styles.label}>Link do wydarzenia:</div>
         <input
           type="text"
-          value={`https://plantogether.app/${event.id}`}
+          value={`https://plantogether.app/${id}`}
           readOnly
-          style={{ width: '100%', marginBottom: 8, padding: 8, borderRadius: 6, border: '1px solid #aaa', fontSize: 15, background: '#eee', textAlign: 'center' }}
+          style={styles.input}
         />
-        <button onClick={handleCopy} style={{ width: '100%', background: '#444', color: '#fff', fontWeight: 'bold', border: 'none', borderRadius: 8, padding: '0.5rem', marginBottom: 12, fontSize: 16, cursor: 'pointer' }}>
-          Kopiuj link
-        </button>
-        {copyMsg && <div style={{ color: 'green', marginBottom: 10, fontWeight: 'bold' }}>{copyMsg}</div>}
+        <button onClick={handleCopy} style={styles.copyButton}>Kopiuj link</button>
+        {copyMsg && <div style={styles.copied}>{copyMsg}</div>}
 
-        {event.creator === userEmail ? (
-          <button onClick={() => setShowDeleteModal(true)} style={{ width: '100%', background: '#b32323', color: '#fff', fontWeight: 'bold', border: 'none', borderRadius: 8, padding: '0.5rem', marginBottom: 16, fontSize: 16, cursor: 'pointer' }}>
+        {isCreator && (
+          <button onClick={() => setShowConfirmDelete(true)} style={styles.deleteBtn}>
             USUŃ WYDARZENIE
-          </button>
-        ) : (
-          <button onClick={handleLeave} style={{ width: '100%', background: '#555', color: '#fff', fontWeight: 'bold', border: 'none', borderRadius: 8, padding: '0.5rem', marginBottom: 16, fontSize: 16, cursor: 'pointer' }}>
-            OPUŚĆ WYDARZENIE
           </button>
         )}
 
-        <div style={{ color: '#fff', fontWeight: 'bold', marginBottom: 6 }}>Opis wydarzenia:</div>
-        <div style={{ marginBottom: 16, color: '#ccc' }}>{event.description || '(brak)'}</div>
 
-        <div style={{ fontWeight: 'bold', marginBottom: 6, color: '#fff' }}>Uczestnicy ({participants.length}):</div>
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: 16 }}>
-          <div style={{ flex: 1, background: '#444', borderRadius: 6, padding: 10 }}>
-            <div style={{ fontWeight: 'bold', marginBottom: 6, color: '#fff' }}>Zadeklarowani:</div>
-            {declared.map((p, i) => (
-              <div key={i} style={{ fontSize: 14, color: '#ddd' }}>• {p.isMe ? 'Ty' : p.isCreator ? 'Twórca' : p.display} <span style={{ color: '#aaa', fontSize: 12 }}>({p.display})</span></div>
-            ))}
-          </div>
-          <div style={{ flex: 1, background: '#555', borderRadius: 6, padding: 10 }}>
-            <div style={{ fontWeight: 'bold', marginBottom: 6, color: '#fff' }}>Niezadeklarowani:</div>
-            {undeclared.map((p, i) => (
-              <div key={i} style={{ fontSize: 14, color: '#ccc' }}>• {p.isMe ? 'Ty' : p.isCreator ? 'Twórca' : p.display} <span style={{ color: '#aaa', fontSize: 12 }}>({p.display})</span></div>
-            ))}
-          </div>
-        </div>
 
-        <div style={{ marginBottom: 8, color: '#fff' }}>
-          Najlepszy czas na wydarzenie to:<br />
-          {bestTime ? (
-            <span style={{ fontWeight: 'bold', color: '#9f0' }}>
-              {bestTime.day}, {bestTime.range}
-            </span>
+        <div style={styles.label}>Opis wydarzenia:</div>
+        <div style={styles.description}>{event.description || '(brak)'}</div>
+
+        <div style={styles.label}>Uczestnicy ({participants.length}):</div>
+        <div style={styles.participantsContainer}>
+          {participants.length === 0 ? (
+            <div style={styles.noParticipants}>- Brak uczestników</div>
           ) : (
-            <span style={{ color: '#ccc', fontStyle: 'italic' }}>Nikt nie wypełnił jeszcze grafiku</span>
+            <div style={styles.columns}>
+              <div style={styles.column}>
+                <strong>Zadeklarowani:</strong>
+                {declared.length === 0 && <div style={styles.noParticipants}>- Brak</div>}
+                {declared.map((p, i) => (
+                  <div key={i} style={styles.person}>• {formatName(p.user, userId, event.creator)}</div>
+                ))}
+              </div>
+              <div style={styles.column}>
+                <strong>Niezadeklarowani:</strong>
+                {undeclared.length === 0 && <div style={styles.noParticipants}>- Brak</div>}
+                {undeclared.map((p, i) => (
+                  <div key={i} style={styles.person}>• {formatName(p.user, userId, event.creator)}</div>
+                ))}
+              </div>
+            </div>
           )}
         </div>
 
-        <button onClick={() => setShowScheduleModal(true)} style={{ width: '100%', background: '#a1a416', color: '#fff', fontWeight: 'bold', border: 'none', borderRadius: 8, padding: '0.5rem', marginBottom: 12, fontSize: 16, cursor: 'pointer' }}>
-          MOJA DOSTĘPNOŚĆ
-        </button>
-        <button onClick={() => navigate('/dashboard')} style={{ width: '100%', background: '#1f7ba6', color: '#fff', fontWeight: 'bold', border: 'none', borderRadius: 8, padding: '0.5rem', fontSize: 16, cursor: 'pointer' }}>
+        <div style={styles.label}>Najlepszy czas na wydarzenie to:</div>
+        <div style={styles.bestTime}>
+          {calculateBestTime(participants)}
+        </div>
+
+        {(isCreator || isParticipant) && (
+          <button onClick={() => {
+            console.log('Opening schedule modal with event data:', event);
+            setShowScheduleModal(true);
+          }} style={styles.availabilityBtn}>
+            MOJA DOSTĘPNOŚĆ
+          </button>
+        )}
+
+        <button onClick={() => navigate('/dashboard')} style={styles.backBtn}>
           POWRÓT
         </button>
+      </div>
 
-        {showDeleteModal && (
-          <div style={{
-            position: 'fixed', left: 0, top: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.5)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
-          }}>
-            <div style={{ background: '#fff', padding: '2rem', borderRadius: 8, minWidth: 250, textAlign: 'center', boxShadow: '0 0 15px rgba(0,0,0,0.2)' }}>
-              <p style={{ marginBottom: 20 }}>Na pewno usunąć to wydarzenie?</p>
-              <button onClick={confirmDelete} style={{ marginRight: 10, background: '#e36b6b', color: '#222', border: 'none', borderRadius: 6, padding: '0.5rem 1.5rem', fontWeight: 'bold', cursor: 'pointer' }}>Usuń</button>
-              <button onClick={() => setShowDeleteModal(false)} style={{ background: '#6bc1e3', color: '#222', border: 'none', borderRadius: 6, padding: '0.5rem 1.5rem', fontWeight: 'bold', cursor: 'pointer' }}>Anuluj</button>
+      {showConfirmDelete && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalBox}>
+            <p>Czy na pewno chcesz usunąć to wydarzenie?</p>
+            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+              <button onClick={handleDelete} style={styles.modalDeleteBtn}>Usuń</button>
+              <button onClick={() => setShowConfirmDelete(false)} style={styles.modalCancelBtn}>Anuluj</button>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {showScheduleModal && (
-          <ScheduleModal
-            onSave={updateSchedule}
-            onCancel={() => setShowScheduleModal(false)}
-            onClear={clearSchedule}
-            existingSchedule={userSchedule}
-          />
-        )}
-      </div>
+      {showScheduleModal && (
+        <ScheduleModal
+          key={`schedule-modal-${event?._id}-${JSON.stringify(event?.participants?.map(p => p.availability))}`} // Force re-render when availability data changes
+          onSave={handleSaveSchedule}
+          onCancel={() => setShowScheduleModal(false)}
+          onClear={() => {
+            // Schedule clearing logic
+            setShowScheduleModal(false);
+          }}
+          existingSchedule={event}
+        />
+      )}
+
+      {/* Wewnętrzne powiadomienie */}
+      {notification.show && (
+        <div style={styles.notification}>
+          <div style={{
+            ...styles.notificationContent,
+            background: notification.type === 'success' ? '#4be36b' : '#e36b6b',
+            color: '#222'
+          }}>
+            {notification.message}
+          </div>
+        </div>
+      )}
     </div>
   );
+};
+
+const formatName = (user, currentUserId, creator) => {
+  if (!user) return '(brak)';
+  const fullName = `${user.name} ${user.surname || ''}`.trim();
+  
+  // Check if this is the event creator
+  const isCreator = creator?._id === user._id || creator === user._id;
+  // Check if this is the current user
+  const isCurrentUser = user._id === currentUserId;
+  
+  return (
+    <span>
+      {fullName}
+      {isCreator && <span style={{ color: '#FF6B6B', fontWeight: 'bold' }}> (T)</span>}
+      {isCurrentUser && <span style={{ color: '#FFD700', fontWeight: 'bold' }}> (TY)</span>}
+    </span>
+  );
+};
+
+// Function to calculate the best time for the event
+const calculateBestTime = (participants) => {
+  const days = ['Pon', 'Wt', 'Śr', 'Czw', 'Pią', 'Sob', 'Niedz'];
+  const dayNames = ['Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota', 'Niedziela'];
+  
+  console.log('calculateBestTime - participants:', JSON.stringify(participants, null, 2));
+  
+  // Find all declared participants
+  const declaredParticipants = participants.filter(p => p.availability && Object.keys(p.availability).length > 0);
+  console.log('calculateBestTime - declaredParticipants:', JSON.stringify(declaredParticipants, null, 2));
+  
+  if (declaredParticipants.length === 0) {
+    return 'Brak zadeklarowanych uczestników';
+  }
+  
+  // For each day check availability and find common time slots
+  const dayResults = days.map((day, dayIndex) => {
+    console.log(`\n--- Sprawdzanie dnia: ${day} ---`);
+    
+    const availableParticipants = declaredParticipants.filter(participant => {
+      const dayAvailability = participant.availability[0]?.[day];
+      console.log(`Uczestnik ${participant.user?.name || 'Unknown'}:`, dayAvailability);
+      return dayAvailability && (dayAvailability.fullFree || (dayAvailability.from && dayAvailability.to));
+    });
+    
+    console.log(`Dostępni uczestnicy dla ${day}:`, availableParticipants.length);
+    
+    if (availableParticipants.length === 0) {
+      return {
+        day: dayNames[dayIndex],
+        score: 0,
+        availableCount: 0,
+        totalCount: declaredParticipants.length,
+        commonTimeRange: null
+      };
+    }
+    
+    // Find common time range for this day
+    const commonTimeRange = findCommonTimeRangeForDay(availableParticipants, day);
+    
+    return {
+      day: dayNames[dayIndex],
+      score: availableParticipants.length / declaredParticipants.length,
+      availableCount: availableParticipants.length,
+      totalCount: declaredParticipants.length,
+      commonTimeRange
+    };
+  });
+  
+  // Find day with highest score and common time
+  const bestDay = dayResults.reduce((best, current) => {
+    if (current.score > best.score && current.commonTimeRange) {
+      return current;
+    }
+    return best;
+  });
+  
+  if (!bestDay.commonTimeRange) {
+    return 'Brak wspólnego czasu';
+  }
+  
+  return `${bestDay.day}, ${bestDay.commonTimeRange} (${bestDay.availableCount}/${bestDay.totalCount} uczestników)`;
+};
+
+// Function to find common time range for a specific day
+const findCommonTimeRangeForDay = (participants, day) => {
+  console.log(`findCommonTimeRangeForDay - day: ${day}, participants:`, participants);
+  
+  const timeRanges = participants.map(participant => {
+    const dayAvailability = participant.availability[0]?.[day];
+    console.log(`findCommonTimeRangeForDay - participant availability for ${day}:`, dayAvailability);
+    
+    if (dayAvailability?.fullFree) {
+      return { start: '00:00', end: '23:59', type: 'full' };
+    } else if (dayAvailability?.from && dayAvailability?.to) {
+      return { start: dayAvailability.from, end: dayAvailability.to, type: 'range' };
+    }
+    return null;
+  }).filter(range => range !== null);
+  
+  console.log(`findCommonTimeRangeForDay - timeRanges for ${day}:`, timeRanges);
+  
+  if (timeRanges.length === 0) {
+    return null;
+  }
+  
+  // If someone has "all day", common time is intersection with other ranges
+  const hasFullDay = timeRanges.some(range => range.type === 'full');
+  
+  if (hasFullDay) {
+    // Find narrowest common range from remaining participants
+    const rangeParticipants = timeRanges.filter(range => range.type === 'range');
+    if (rangeParticipants.length === 0) {
+      return 'cały dzień';
+    }
+    
+    const commonRange = findIntersectionOfRanges(rangeParticipants);
+    return commonRange ? `${commonRange.start} - ${commonRange.end}` : 'różne godziny';
+  } else {
+    // Everyone has specific ranges - find intersection
+    const commonRange = findIntersectionOfRanges(timeRanges);
+    return commonRange ? `${commonRange.start} - ${commonRange.end}` : 'różne godziny';
+  }
+};
+
+// Function to find intersection of time ranges
+const findIntersectionOfRanges = (ranges) => {
+  if (ranges.length === 0) return null;
+  if (ranges.length === 1) return ranges[0];
+  
+  // Find latest start and earliest end
+  let latestStart = ranges[0].start;
+  let earliestEnd = ranges[0].end;
+  
+  for (let i = 1; i < ranges.length; i++) {
+    if (ranges[i].start > latestStart) {
+      latestStart = ranges[i].start;
+    }
+    if (ranges[i].end < earliestEnd) {
+      earliestEnd = ranges[i].end;
+    }
+  }
+  
+  // Check if intersection exists
+  if (latestStart >= earliestEnd) {
+    return null; // No intersection
+  }
+  
+  return { start: latestStart, end: earliestEnd };
+};
+
+const styles = {
+  wrapper: {
+    background: '#111',
+    minHeight: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    padding: '2rem',
+    color: 'white'
+  },
+  header: {
+    color: '#ccc',
+    fontSize: '14px',
+    marginBottom: '10px',
+    textAlign: 'center'
+  },
+  box: {
+    background: '#222',
+    padding: '2rem',
+    borderRadius: '16px',
+    width: '400px',
+    textAlign: 'center',
+    maxWidth: '100%'
+  },
+  title: {
+    color: '#fff',
+    fontSize: '24px',
+    fontWeight: 'bold',
+    marginBottom: '20px',
+    marginTop: '0'
+  },
+  label: {
+    marginBottom: '8px',
+    fontWeight: 'bold',
+    color: '#fff',
+    textAlign: 'center'
+  },
+  input: {
+    width: '100%',
+    marginBottom: '8px',
+    padding: '12px',
+    borderRadius: '8px',
+    border: '1px solid #444',
+    fontSize: '14px',
+    background: '#333',
+    color: '#fff',
+    textAlign: 'center',
+    boxSizing: 'border-box'
+  },
+  copyButton: {
+    background: 'none',
+    border: 'none',
+    color: '#3ad1c6',
+    cursor: 'pointer',
+    fontSize: '14px',
+    marginBottom: '16px',
+    textDecoration: 'underline'
+  },
+  copied: {
+    color: '#4be36b',
+    marginBottom: '16px',
+    fontSize: '14px'
+  },
+  deleteBtn: {
+    width: '100%',
+    background: '#e36b6b',
+    color: '#222',
+    fontWeight: 'bold',
+    border: 'none',
+    borderRadius: '8px',
+    padding: '12px',
+    marginBottom: '16px',
+    fontSize: '16px',
+    cursor: 'pointer'
+  },
+  description: {
+    marginBottom: '20px',
+    color: '#ccc',
+    textAlign: 'center',
+    padding: '12px',
+    background: '#333',
+    borderRadius: '6px'
+  },
+  participantsContainer: {
+    marginBottom: '20px'
+  },
+  noParticipants: {
+    color: '#999',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    padding: '20px'
+  },
+  columns: {
+    display: 'flex',
+    gap: '10px',
+    justifyContent: 'center'
+  },
+  column: {
+    flex: 1,
+    background: '#333',
+    borderRadius: '8px',
+    padding: '12px',
+    textAlign: 'center'
+  },
+  person: {
+    fontSize: '14px',
+    color: '#ddd',
+    marginBottom: '4px'
+  },
+  bestTime: {
+    color: '#ccc',
+    marginBottom: '20px',
+    padding: '12px',
+    background: '#333',
+    borderRadius: '6px',
+    fontStyle: 'italic',
+    textAlign: 'center'
+  },
+  availabilityBtn: {
+    width: '100%',
+    background: '#4be36b',
+    color: '#222',
+    fontWeight: 'bold',
+    border: 'none',
+    borderRadius: '8px',
+    padding: '12px',
+    marginBottom: '16px',
+    fontSize: '16px',
+    cursor: 'pointer'
+  },
+  backBtn: {
+    width: '100%',
+    background: '#a16be3',
+    color: '#222',
+    fontWeight: 'bold',
+    border: 'none',
+    borderRadius: '8px',
+    padding: '12px',
+    fontSize: '16px',
+    cursor: 'pointer'
+  },
+  center: {
+    color: '#ccc',
+    textAlign: 'center',
+    marginTop: '4rem',
+    fontSize: '18px'
+  },
+  modalOverlay: {
+    position: 'fixed',
+    top: 0, left: 0, right: 0, bottom: 0,
+    background: 'rgba(0, 0, 0, 0.7)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999
+  },
+  modalBox: {
+    background: '#222',
+    padding: '2rem',
+    borderRadius: '16px',
+    textAlign: 'center',
+    color: '#fff',
+    maxWidth: '400px'
+  },
+  modalDeleteBtn: {
+    flex: 1,
+    background: '#e36b6b',
+    color: '#222',
+    fontWeight: 'bold',
+    border: 'none',
+    borderRadius: '8px',
+    padding: '12px',
+    fontSize: '16px',
+    cursor: 'pointer'
+  },
+  modalCancelBtn: {
+    flex: 1,
+    background: '#a16be3',
+    color: '#222',
+    fontWeight: 'bold',
+    border: 'none',
+    borderRadius: '8px',
+    padding: '12px',
+    fontSize: '16px',
+    cursor: 'pointer'
+  },
+  notification: {
+    position: 'fixed',
+    top: '20px',
+    right: '20px',
+    zIndex: 1001,
+    animation: 'slideIn 0.3s ease-out'
+  },
+  notificationContent: {
+    padding: '12px 20px',
+    borderRadius: '8px',
+    fontWeight: 'bold',
+    fontSize: '14px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+    minWidth: '300px',
+    textAlign: 'center'
+  }
 };
 
 export default EventDetails;

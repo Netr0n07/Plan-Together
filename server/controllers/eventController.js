@@ -1,13 +1,14 @@
 const Event = require('../models/Event');
 const mongoose = require('mongoose');
 
-// GET - pobierz tylko wydarzenia zalogowanego użytkownika
+// GET - get events for logged in user only
 exports.getAllEvents = async (req, res) => {
   try {
+    const userObjectId = new mongoose.Types.ObjectId(req.user.userId);
     const events = await Event.find({
       $or: [
-        { creator: req.user.userId },
-        { 'participants.user': new mongoose.Types.ObjectId(req.user.userId) }
+        { creator: userObjectId },
+        { 'participants.user': userObjectId }
       ]
     });
     res.json(events);
@@ -15,10 +16,10 @@ exports.getAllEvents = async (req, res) => {
     console.error('Błąd pobierania wydarzeń:', err);
     res.status(500).json({ message: 'Błąd pobierania wydarzeń', error: err.message });
   }
+  console.log('[getAllEvents] req.user:', req.user);
 };
 
-
-// POST - utwórz nowe wydarzenie
+// POST - create new event
 exports.createEvent = async (req, res) => {
   console.log("createEvent -> req.user:", req.user);
   console.log("createEvent -> req.body:", req.body);
@@ -29,23 +30,35 @@ exports.createEvent = async (req, res) => {
     const newEvent = new Event({
       title,
       description,
-      creator: req.user.userId
+      creator: req.user.userId,
+      participants: [{
+        user: req.user.userId,
+        availability: []
+      }]
     });
 
     await newEvent.save();
-    res.status(201).json({ message: 'Wydarzenie utworzone', event: newEvent });
+    
+    // Get event with populated user data
+    const populatedEvent = await Event.findById(newEvent._id)
+      .populate('creator', '_id')
+      .populate('participants.user', 'name surname email');
+    
+    res.status(201).json({ message: 'Wydarzenie utworzone', event: populatedEvent });
   } catch (err) {
     console.error('Błąd tworzenia wydarzenia:', err);
     res.status(500).json({ message: 'Błąd tworzenia wydarzenia' });
   }
 };
 
-// GET - pobierz szczegóły jednego wydarzenia
+// GET - get single event details
 exports.getEventById = async (req, res) => {
   console.log('getEventById wywołane z id:', req.params.id);
   try {
     const event = await Event.findById(req.params.id)
+      .populate('creator', '_id') // Added: ensures isCreator works correctly
       .populate('participants.user', 'name surname email');
+
     if (!event) {
       console.log('Nie znaleziono wydarzenia');
       return res.status(404).json({ message: 'Nie znaleziono wydarzenia' });
@@ -58,7 +71,7 @@ exports.getEventById = async (req, res) => {
   }
 };
 
-// PUT - aktualizuj wydarzenie
+// PUT - update event
 exports.updateEvent = async (req, res) => {
   try {
     const { title, description } = req.body;
@@ -70,7 +83,6 @@ exports.updateEvent = async (req, res) => {
       return res.status(404).json({ message: 'Nie znaleziono wydarzenia' });
     }
 
-    // Sprawdź czy użytkownik jest twórcą wydarzenia
     if (event.creator.toString() !== req.user.userId) {
       console.log('[updateEvent] Brak uprawnień:', {
         eventCreator: event.creator.toString(),
@@ -79,12 +91,10 @@ exports.updateEvent = async (req, res) => {
       return res.status(403).json({ message: 'Brak uprawnień do edycji tego wydarzenia' });
     }
 
-    // Aktualizuj pola
     if (title) event.title = title;
     if (description) event.description = description;
 
     await event.save();
-    // Pobierz zpopulowany event
     const populated = await Event.findById(eventId).populate('participants.user', 'name surname email');
     console.log('[updateEvent] Wydarzenie zaktualizowane:', eventId);
     res.json({ message: 'Wydarzenie zaktualizowane', event: populated });
@@ -94,7 +104,7 @@ exports.updateEvent = async (req, res) => {
   }
 };
 
-// DELETE - usuń wydarzenie
+// DELETE - delete event
 exports.deleteEvent = async (req, res) => {
   console.log('[deleteEvent] Próba usunięcia wydarzenia:', req.params.id, 'przez użytkownika:', req.user.userId);
   try {
@@ -120,7 +130,7 @@ exports.deleteEvent = async (req, res) => {
   }
 };
 
-// POST - dołącz do wydarzenia
+// POST - join event
 exports.joinEvent = async (req, res) => {
   try {
     const eventId = req.params.id;
@@ -145,7 +155,7 @@ exports.joinEvent = async (req, res) => {
   }
 };
 
-// POST - opuść wydarzenie
+// POST - leave event
 exports.leaveEvent = async (req, res) => {
   try {
     const eventId = req.params.id;
@@ -170,7 +180,7 @@ exports.leaveEvent = async (req, res) => {
   }
 };
 
-// POST - wyrzuć uczestnika z wydarzenia
+// POST - kick participant from event
 exports.kickParticipant = async (req, res) => {
   try {
     const eventId = req.params.id;
@@ -195,26 +205,26 @@ exports.kickParticipant = async (req, res) => {
   }
 };
 
-// Ustaw/aktualizuj dostępność uczestnika
+// Set/update participant availability
 exports.setAvailability = async (req, res) => {
   try {
     const eventId = req.params.id;
     const userId = req.user.userId;
     const { availability } = req.body;
+    console.log('setAvailability - received availability:', availability);
+    
     const event = await Event.findById(eventId);
     if (!event) {
       return res.status(404).json({ message: 'Nie znaleziono wydarzenia' });
     }
-    // Szukaj uczestnika po userId
     const idx = event.participants.findIndex(p => p.user && p.user.toString() === userId);
     if (idx === -1) {
-      // Dodaj nowego uczestnika z dostępnością
-      event.participants.push({ user: userId, availability });
+      event.participants.push({ user: userId, availability: [availability] });
     } else {
-      // Aktualizuj dostępność istniejącego uczestnika
-      event.participants[idx].availability = availability;
+      event.participants[idx].availability = [availability];
     }
     await event.save();
+    console.log('setAvailability - saved event:', event);
     res.json({ message: 'Dostępność zapisana', event });
   } catch (err) {
     console.error('Błąd zapisu dostępności:', err);
@@ -222,7 +232,7 @@ exports.setAvailability = async (req, res) => {
   }
 };
 
-// [ADMIN/DEV] Usuń stare wpisy participants bez pola user
+// [ADMIN/DEV] Remove old participant entries without user field
 exports.cleanParticipants = async (req, res) => {
   try {
     const events = await Event.find({});
@@ -241,7 +251,33 @@ exports.cleanParticipants = async (req, res) => {
   }
 };
 
-// --- EKSPORT FUNKCJI ---
+// [ADMIN/DEV] Add creators as participants in events where they're missing
+exports.fixCreatorParticipants = async (req, res) => {
+  try {
+    const events = await Event.find({});
+    let fixed = 0;
+    for (const event of events) {
+      const creatorIsParticipant = event.participants.some(p => 
+        p.user && p.user.toString() === event.creator.toString()
+      );
+      
+      if (!creatorIsParticipant) {
+        event.participants.push({
+          user: event.creator,
+          availability: []
+        });
+        await event.save();
+        fixed++;
+      }
+    }
+    res.json({ message: `Naprawiono ${fixed} wydarzeń.` });
+  } catch (err) {
+    console.error('Błąd naprawiania uczestników:', err);
+    res.status(500).json({ message: 'Błąd naprawiania uczestników' });
+  }
+};
+
+// --- FUNCTION EXPORTS ---
 module.exports = {
   getAllEvents: exports.getAllEvents,
   createEvent: exports.createEvent,
@@ -252,6 +288,6 @@ module.exports = {
   leaveEvent: exports.leaveEvent,
   kickParticipant: exports.kickParticipant,
   setAvailability: exports.setAvailability,
-  cleanParticipants: exports.cleanParticipants
+  cleanParticipants: exports.cleanParticipants,
+  fixCreatorParticipants: exports.fixCreatorParticipants
 };
-

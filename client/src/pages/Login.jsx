@@ -16,12 +16,13 @@ const Login = () => {
     setLoginError(false);
     try {
       const res = await axios.post('http://localhost:5000/api/users/login', form);
-      localStorage.setItem('token', res.data.token);
-      localStorage.setItem('userEmail', form.email);
-      // Pobierz dane użytkownika
+      sessionStorage.setItem('token', res.data.token);
+      sessionStorage.setItem('userEmail', form.email);      
+      // Get user data
       const userRes = await axios.get('http://localhost:5000/api/users/me', { headers: { Authorization: `Bearer ${res.data.token}` } });
-      localStorage.setItem('userName', userRes.data.name);
-      localStorage.setItem('userSurname', userRes.data.surname);
+      sessionStorage.setItem('userId', userRes.data._id);
+      sessionStorage.setItem('userName', userRes.data.name);
+      sessionStorage.setItem('userSurname', userRes.data.surname);
       navigate('/dashboard');
     } catch (err) {
       setLoginError(true);

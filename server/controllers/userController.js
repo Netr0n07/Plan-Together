@@ -46,7 +46,7 @@ const loginUser = async (req, res) => {
   { expiresIn: '1h' }
   );
 
-    res.status(200).json({ token, message: 'Zalogowano pomyślnie' });
+    res.status(200).json({ token, userId: user._id, message: 'Zalogowano pomyślnie' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Błąd logowania' });
@@ -63,7 +63,7 @@ const updateUser = async (req, res) => {
       return res.status(404).json({ message: 'Użytkownik nie znaleziony' });
     }
 
-    // Sprawdź czy nowy email nie jest już używany przez innego użytkownika
+    // Check if new email is not already used by another user
     if (email && email !== user.email) {
       const existingUser = await User.findOne({ email });
       if (existingUser) {
@@ -72,7 +72,7 @@ const updateUser = async (req, res) => {
       user.email = email;
     }
 
-    // Aktualizuj podstawowe dane
+    // Update basic data
     if (name) user.name = name;
     if (surname) user.surname = surname;
 

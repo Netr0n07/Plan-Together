@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 const CreateEvent = () => {
   const navigate = useNavigate();
@@ -9,21 +10,35 @@ const CreateEvent = () => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const userEmail = localStorage.getItem('userEmail');
-    if (!userEmail) {
-      alert('Brak informacji o użytkowniku. Zaloguj się ponownie.');
+
+    const token = sessionStorage.getItem('token');
+    if (!token) {
+      alert('Brak tokenu. Zaloguj się ponownie.');
       navigate('/login');
       return;
     }
-    const userName = localStorage.getItem('userName');
-    const userSurname = localStorage.getItem('userSurname');
-    const eventsKey = `events_${userEmail}`;
-    const events = JSON.parse(localStorage.getItem(eventsKey) || '[]');
-    const newEvent = { id: Date.now(), name: form.name, description: form.description, creator: userEmail, creatorName: userName, creatorSurname: userSurname };
-    localStorage.setItem(eventsKey, JSON.stringify([...events, newEvent]));
-    navigate('/dashboard');
+
+    try {
+      const response = await axios.post(
+        'http://localhost:5000/api/events',
+        {
+          title: form.name,
+          description: form.description,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('Błąd tworzenia wydarzenia:', error);
+      alert('Nie udało się utworzyć wydarzenia.');
+    }
   };
 
   const handleCancel = () => {
@@ -63,4 +78,4 @@ const CreateEvent = () => {
   );
 };
 
-export default CreateEvent; 
+export default CreateEvent;

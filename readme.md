@@ -81,7 +81,7 @@ PlanTogether/
    npm start
 
    # Backend (in a new terminal)
-   cd ../server
+   cd server
    npm install
    node app.js
    ```
@@ -96,6 +96,3 @@ PlanTogether/
 - **CreateEvent** – create new event
 - **Profile** – edit your profile
 - **Login/Register** – authentication
-
-## Author
-Project created as part of a recruitment task.

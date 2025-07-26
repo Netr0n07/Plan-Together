@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 const days = ['Pon', 'Wt', 'Śr', 'Czw', 'Pią', 'Sob', 'Niedz'];
 
 const ScheduleModal = ({ onSave, onCancel, onClear, existingSchedule }) => {
-  const userEmail = localStorage.getItem('userEmail');
+  const userEmail = sessionStorage.getItem('userEmail');
   const eventId = window.location.pathname.split('/').pop();
 
   const initialState = days.reduce((acc, day) => {
@@ -18,15 +18,39 @@ const ScheduleModal = ({ onSave, onCancel, onClear, existingSchedule }) => {
 
   const [schedule, setSchedule] = useState(initialState);
 
-  // Walidacja: każdy dzień musi mieć albo zakres godzin albo zaznaczone "cała wolna"/"cała zajęta"
+  // Validation: each day must have either time range or "all free"/"all busy" checked
   const isValid = Object.values(schedule).every(day =>
     day.fullFree || day.fullBusy || (day.from && day.to)
   );
 
   useEffect(() => {
+    console.log('ScheduleModal useEffect - userEmail:', userEmail);
+    console.log('ScheduleModal useEffect - existingSchedule:', existingSchedule);
+    
     const savedKey = `schedule_${eventId}_${userEmail}`;
-    const fallback = localStorage.getItem(savedKey);
-    const base = fallback ? JSON.parse(fallback) : {};
+    const fallback = sessionStorage.getItem(savedKey);
+    console.log('ScheduleModal useEffect - savedKey:', savedKey);
+    console.log('ScheduleModal useEffect - fallback:', fallback);
+    
+    // Check if user is event participant
+    const isParticipant = existingSchedule && existingSchedule.participants && 
+      existingSchedule.participants.some(p => p.user && p.user.email === userEmail);
+    console.log('ScheduleModal useEffect - isParticipant:', isParticipant);
+    
+    // Find current user's availability from the database
+    let dbSchedule = {};
+    if (existingSchedule && existingSchedule.participants) {
+      const currentUser = existingSchedule.participants.find(p => p.user && p.user.email === userEmail);
+      console.log('ScheduleModal useEffect - currentUser:', currentUser);
+      if (currentUser && currentUser.availability && currentUser.availability.length > 0) {
+        dbSchedule = currentUser.availability[0];
+        console.log('ScheduleModal useEffect - found user availability in DB:', dbSchedule);
+      }
+    }
+    
+    // Priority: database > sessionStorage > default (changed priority to load from DB first)
+    const base = dbSchedule || (fallback && isParticipant ? JSON.parse(fallback) : {});
+    console.log('ScheduleModal useEffect - base:', base);
   
     const fullSchedule = days.reduce((acc, day) => {
       acc[day] = base[day] || {
@@ -38,6 +62,7 @@ const ScheduleModal = ({ onSave, onCancel, onClear, existingSchedule }) => {
       return acc;
     }, {});
   
+    console.log('ScheduleModal useEffect - fullSchedule:', fullSchedule);
     setSchedule(fullSchedule);
   }, [existingSchedule, eventId, userEmail]);  
 
@@ -68,11 +93,22 @@ const ScheduleModal = ({ onSave, onCancel, onClear, existingSchedule }) => {
 
   const handleSave = () => {
     if (!isValid) return;
+    
+    // Don't save to sessionStorage here - let the parent component handle it
+    // after successful save to database
+    console.log('ScheduleModal handleSave - calling onSave with schedule:', schedule);
+    
     onSave(schedule);
   };
 
   const handleClear = () => {
     setSchedule(initialState);
+    
+    // Remove schedule from sessionStorage
+    const savedKey = `schedule_${eventId}_${userEmail}`;
+    sessionStorage.removeItem(savedKey);
+    console.log('ScheduleModal handleClear - removed from sessionStorage:', savedKey);
+    
     if (onClear) onClear();
   };
 
@@ -83,7 +119,7 @@ const ScheduleModal = ({ onSave, onCancel, onClear, existingSchedule }) => {
       alignItems: 'center', zIndex: 1000
     }}>
       <div style={{
-        background: '#1c1c1c', padding: '2rem', borderRadius: 12,
+        background: '#222', padding: '2rem', borderRadius: 16,
         width: 350, color: '#fff'
       }}>
         <h3 style={{ fontWeight: 'bold', marginBottom: 20, textAlign: 'center' }}>Podaj swoją dostępność:</h3>
@@ -131,11 +167,11 @@ const ScheduleModal = ({ onSave, onCancel, onClear, existingSchedule }) => {
             disabled={!isValid}
             style={{
               flex: 1,
-              background: isValid ? '#227db5' : '#444',
-              color: '#fff',
+              background: isValid ? '#4be36b' : '#444',
+              color: isValid ? '#222' : '#fff',
               fontWeight: 'bold',
               border: 'none',
-              borderRadius: 6,
+              borderRadius: 8,
               padding: '0.5rem',
               cursor: isValid ? 'pointer' : 'not-allowed'
             }}
@@ -146,11 +182,11 @@ const ScheduleModal = ({ onSave, onCancel, onClear, existingSchedule }) => {
             onClick={onCancel}
             style={{
               flex: 1,
-              background: '#b52222',
-              color: '#fff',
+              background: '#e36b6b',
+              color: '#222',
               fontWeight: 'bold',
               border: 'none',
-              borderRadius: 6,
+              borderRadius: 8,
               padding: '0.5rem',
               cursor: 'pointer'
             }}
@@ -161,11 +197,11 @@ const ScheduleModal = ({ onSave, onCancel, onClear, existingSchedule }) => {
             onClick={handleClear}
             style={{
               flex: 1,
-              background: '#555',
-              color: '#fff',
+              background: '#a16be3',
+              color: '#222',
               fontWeight: 'bold',
               border: 'none',
-              borderRadius: 6,
+              borderRadius: 8,
               padding: '0.5rem',
               cursor: 'pointer'
             }}

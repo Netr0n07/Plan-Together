@@ -28,7 +28,7 @@ const Onboarding = () => {
 
         <p>📅 Łatwe planowanie</p>
         <p>👥 Zapraszaj znajomych</p>
-        <p>✅ Znajdź idealny termin</p>
+        <p>✓ Znajdź idealny termin</p>
 
         <button onClick={handleStart} style={{
           marginTop: '25px',

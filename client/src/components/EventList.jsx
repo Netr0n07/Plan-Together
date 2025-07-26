@@ -1,4 +1,4 @@
-// client/src/components/EventList.jsx
+// Event list component
 import React from 'react';
 
 const EventList = ({ events }) => {
