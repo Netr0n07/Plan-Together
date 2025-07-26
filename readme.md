@@ -65,15 +65,58 @@ PlanTogether/
    - Git (to clone the repository)
    - `.env` config file in the `server/` directory (see below)
 
-2. **Configuration:**
+2. **Database Setup (MongoDB Atlas):**
+   
+   **Option A: MongoDB Atlas (Recommended for production)**
+   
+   a) Go to [MongoDB Atlas](https://www.mongodb.com/atlas) and create a free account
+   
+   b) Create a new project and cluster:
+      - Click "Build a Database"
+      - Choose "FREE" tier (M0)
+      - Select your preferred cloud provider and region
+      - Click "Create"
+   
+   c) Set up database access:
+      - Go to "Database Access" in the left sidebar
+      - Click "Add New Database User"
+      - Create a username and password (save these!)
+      - Select "Read and write to any database"
+      - Click "Add User"
+   
+   d) Set up network access:
+      - Go to "Network Access" in the left sidebar
+      - Click "Add IP Address"
+      - Click "Allow Access from Anywhere" (or add your specific IP)
+      - Click "Confirm"
+   
+   e) Get your connection string:
+      - Go back to "Database" → "Connect"
+      - Choose "Connect your application"
+      - Select "Node.js" and version "6.7 or later"
+      - Copy the connection string
+      - Replace `<password>` with your database user password
+      - Replace `<dbname>` with `plantogether` (or your preferred database name)
+   
+   **Option B: Local MongoDB**
+   
+   - Install MongoDB locally and use: `mongodb://localhost:27017/plantogether`
+
+3. **Configuration:**
    - Create a `.env` file in the `server/` directory with the following content:
      ```env
-     MONGO_URI=mongodb://localhost:27017/plantogether
+     MONGO_URI=mongodb+srv://your_username:your_password@cluster0.xxxxx.mongodb.net/plantogether?retryWrites=true&w=majority
      PORT=5000
-     JWT_SECRET=your_super_secret_key
+     JWT_SECRET=your_super_secret_key_here
      ```
+   
+   **Important:** Replace the placeholders with your actual values:
+   - `your_username`: Your MongoDB Atlas database username
+   - `your_password`: Your MongoDB Atlas database password
+   - `cluster0.xxxxx.mongodb.net`: Your actual cluster URL from MongoDB Atlas
+   - `your_super_secret_key_here`: A strong random string for JWT token signing
 
-3. **Installation & Start:**
+4. **Installation & Start:**
    ```bash
    # Frontend
    cd client
@@ -86,7 +129,7 @@ PlanTogether/
    node app.js
    ```
 
-4. **Access:**
+5. **Access:**
    - Frontend: http://localhost:3000
    - Backend API: http://localhost:5000
 
