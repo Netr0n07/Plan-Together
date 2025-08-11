@@ -2,6 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../locales/LanguageContext';
 
 const days = ['Pon', 'Wt', 'Śr', 'Czw', 'Pią', 'Sob', 'Niedz'];
+// Keep internal keys (Polish) for backward compatibility with saved data,
+// but render localized labels via i18n.
+const dayKeyToI18nKey = {
+  'Pon': 'monShort',
+  'Wt': 'tueShort',
+  'Śr': 'wedShort',
+  'Czw': 'thuShort',
+  'Pią': 'friShort',
+  'Sob': 'satShort',
+  'Niedz': 'sunShort'
+};
 
 const ScheduleModal = ({ onSave, onCancel, onClear, existingSchedule }) => {
   const { t } = useLanguage();
@@ -128,7 +139,7 @@ const ScheduleModal = ({ onSave, onCancel, onClear, existingSchedule }) => {
 
         {days.map(day => (
           <div key={day} style={{ marginBottom: 14, textAlign: 'center' }}>
-            <div style={{ marginBottom: 4 }}>{day}:</div>
+            <div style={{ marginBottom: 4 }}>{t(dayKeyToI18nKey[day])}:</div>
             <div style={{ marginBottom: 4 }}>
               <label style={{ marginRight: 12 }}>
                 <input

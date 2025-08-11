@@ -578,7 +578,7 @@ const calculateBestTime = (participants, t) => {
     }
     
     // Find common time range for this day
-    const commonTimeRange = findCommonTimeRangeForDay(availableParticipants, day);
+    const commonTimeRange = findCommonTimeRangeForDay(availableParticipants, day, t);
     
     return {
       day: dayNames[dayIndex],
@@ -605,7 +605,7 @@ const calculateBestTime = (participants, t) => {
 };
 
 // Function to find common time range for a specific day
-const findCommonTimeRangeForDay = (participants, day) => {
+const findCommonTimeRangeForDay = (participants, day, t) => {
   console.log(`findCommonTimeRangeForDay - day: ${day}, participants:`, participants);
   
   const timeRanges = participants.map(participant => {
