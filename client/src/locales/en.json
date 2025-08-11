@@ -165,5 +165,10 @@
   "errorChangingPassword": "Error changing password",
   "errorLoadingProfile": "Error loading profile",
   "backToDashboard": "BACK TO DASHBOARD",
-  "confirmLogout": "Are you sure you want to logout?"
+  "confirmLogout": "Are you sure you want to logout?",
+  "editTitle": "EDIT TITLE",
+  "editDescription": "EDIT DESCRIPTION",
+  "eventTitleUpdated": "Event title updated successfully!",
+  "eventDescriptionUpdated": "Event description updated successfully!",
+  "errorUpdatingEvent": "Error updating event"
 } 

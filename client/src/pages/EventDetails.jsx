@@ -20,6 +20,9 @@ const EventDetails = () => {
   const [showRemoveParticipantModal, setShowRemoveParticipantModal] = useState(false);
   const [participantToRemove, setParticipantToRemove] = useState(null);
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [editForm, setEditForm] = useState({ title: '', description: '' });
 
   useEffect(() => {
     if (!token || !userId) {
@@ -160,6 +163,104 @@ const EventDetails = () => {
     }
   };
 
+  const handleEditTitle = () => {
+    setEditForm({ ...editForm, title: event.title });
+    setEditingTitle(true);
+  };
+
+  const handleEditDescription = () => {
+    setEditForm({ ...editForm, description: event.description || '' });
+    setEditingDescription(true);
+  };
+
+  const handleSaveTitle = async () => {
+    try {
+      const response = await fetch(`/api/events/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ title: editForm.title.trim() })
+      });
+
+      if (!response.ok) {
+        throw new Error(t('errorUpdatingEvent'));
+      }
+
+      // Refresh event data
+      const updatedEvent = await fetch(`/api/events/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      }).then(res => res.json());
+      
+      setEvent(updatedEvent);
+      setEditingTitle(false);
+      
+      // Show success notification
+      setNotification({ show: true, message: `✓ ${t('eventTitleUpdated')}`, type: 'success' });
+      
+      // Hide notification after 3 seconds
+      setTimeout(() => {
+        setNotification({ show: false, message: '', type: '' });
+      }, 3000);
+    } catch (error) {
+      console.error('Błąd aktualizacji nazwy wydarzenia:', error);
+      setNotification({ show: true, message: `✗ ${t('errorUpdatingEvent')}`, type: 'error' });
+      
+      // Hide notification after 5 seconds for errors
+      setTimeout(() => {
+        setNotification({ show: false, message: '', type: '' });
+      }, 5000);
+    }
+  };
+
+  const handleSaveDescription = async () => {
+    try {
+      const response = await fetch(`/api/events/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ description: editForm.description.trim() })
+      });
+
+      if (!response.ok) {
+        throw new Error(t('errorUpdatingEvent'));
+      }
+
+      // Refresh event data
+      const updatedEvent = await fetch(`/api/events/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      }).then(res => res.json());
+      
+      setEvent(updatedEvent);
+      setEditingDescription(false);
+      
+      // Show success notification
+      setNotification({ show: true, message: `✓ ${t('eventDescriptionUpdated')}`, type: 'success' });
+      
+      // Hide notification after 3 seconds
+      setTimeout(() => {
+        setNotification({ show: false, message: '', type: '' });
+      }, 3000);
+    } catch (error) {
+      console.error('Błąd aktualizacji opisu wydarzenia:', error);
+      setNotification({ show: true, message: `✗ ${t('errorUpdatingEvent')}`, type: 'error' });
+      
+      // Hide notification after 5 seconds for errors
+      setTimeout(() => {
+        setNotification({ show: false, message: '', type: '' });
+      }, 5000);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingTitle(false);
+    setEditingDescription(false);
+    setEditForm({ title: '', description: '' });
+  };
+
   if (loading) return <div style={styles.center}>Ładowanie...</div>;
   if (!event || error) return <div style={styles.center}>Nie znaleziono wydarzenia.</div>;
 
@@ -177,10 +278,38 @@ const EventDetails = () => {
   return (
     <div style={styles.wrapper}>
               <div style={styles.header}>{t('eventInformation')}</div>
-      <div style={styles.box}>
-        <h2 style={styles.title}>{event.title}</h2>
+             <div style={styles.box}>
+         {editingTitle ? (
+           <div style={styles.editContainer}>
+             <input
+               type="text"
+               value={editForm.title}
+               onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+               style={styles.editInput}
+               autoFocus
+               onFocus={(e) => e.target.select()}
+             />
+             <div style={styles.editButtons}>
+               <button onClick={handleSaveTitle} style={styles.saveEditBtn}>
+                 {t('save')}
+               </button>
+               <button onClick={handleCancelEdit} style={styles.cancelEditBtn}>
+                 {t('cancel')}
+               </button>
+             </div>
+           </div>
+                  ) : (
+           <h2 style={styles.title}>{event.title}</h2>
+         )}
 
-        <div style={styles.label}>{t('eventLink')}</div>
+         {/* Edit Title Button - Only for creator */}
+         {isCreator && !editingTitle && (
+           <button onClick={handleEditTitle} style={styles.editBtn}>
+             {t('editTitle')}
+           </button>
+         )}
+
+         <div style={styles.label}>{t('eventLink')}</div>
         <input
           type="text"
           value={`https://plantogether.app/${id}`}
@@ -197,8 +326,36 @@ const EventDetails = () => {
 
 
 
-        <div style={styles.label}>{t('eventDescription')}</div>
-        <div style={styles.description}>{event.description || t('noDescription')}</div>
+                 <div style={styles.label}>{t('eventDescription')}</div>
+         {editingDescription ? (
+           <div style={styles.editContainer}>
+             <textarea
+               value={editForm.description}
+               onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+               style={styles.editTextarea}
+               autoFocus
+               onFocus={(e) => e.target.select()}
+               rows={3}
+             />
+             <div style={styles.editButtons}>
+               <button onClick={handleSaveDescription} style={styles.saveEditBtn}>
+                 {t('save')}
+               </button>
+               <button onClick={handleCancelEdit} style={styles.cancelEditBtn}>
+                 {t('cancel')}
+               </button>
+             </div>
+           </div>
+         ) : (
+           <div style={styles.description}>{event.description || t('noDescription')}</div>
+         )}
+
+         {/* Edit Description Button - Only for creator */}
+         {isCreator && !editingDescription && (
+           <button onClick={handleEditDescription} style={styles.editBtn}>
+             {t('editDescription')}
+           </button>
+         )}
 
         <div style={styles.label}>{t('participants')} ({participants.length}):</div>
         <div style={styles.participantsContainer}>
@@ -753,16 +910,82 @@ const styles = {
     overflowY: 'auto',
     paddingRight: '5px'
   },
-  removeButton: {
-    background: '#e36b6b',
-    color: '#222',
-    fontWeight: 'bold',
-    border: 'none',
-    borderRadius: '4px',
-    padding: '2px 6px',
-    fontSize: '11px',
-    cursor: 'pointer'
-  }
+     removeButton: {
+     background: '#e36b6b',
+     color: '#222',
+     fontWeight: 'bold',
+     border: 'none',
+     borderRadius: '4px',
+     padding: '2px 6px',
+     fontSize: '11px',
+     cursor: 'pointer'
+   },
+   editBtn: {
+     background: '#3ad1c6',
+     color: '#222',
+     fontWeight: 'bold',
+     border: 'none',
+     borderRadius: '8px',
+     padding: '8px 16px',
+     fontSize: '14px',
+     cursor: 'pointer',
+     marginBottom: '16px',
+     width: '100%'
+   },
+   editContainer: {
+     marginBottom: '16px'
+   },
+   editInput: {
+     width: '100%',
+     padding: '12px',
+     borderRadius: '8px',
+     border: '1px solid #444',
+     fontSize: '24px',
+     fontWeight: 'bold',
+     background: '#333',
+     color: '#fff',
+     boxSizing: 'border-box',
+     marginBottom: '8px'
+   },
+   editTextarea: {
+     width: '100%',
+     padding: '12px',
+     borderRadius: '8px',
+     border: '1px solid #444',
+     fontSize: '14px',
+     background: '#333',
+     color: '#fff',
+     boxSizing: 'border-box',
+     marginBottom: '8px',
+     resize: 'vertical',
+     minHeight: '80px'
+   },
+   editButtons: {
+     display: 'flex',
+     gap: '8px'
+   },
+   saveEditBtn: {
+     flex: 1,
+     background: '#4be36b',
+     color: '#222',
+     fontWeight: 'bold',
+     border: 'none',
+     borderRadius: '8px',
+     padding: '8px',
+     fontSize: '14px',
+     cursor: 'pointer'
+   },
+   cancelEditBtn: {
+     flex: 1,
+     background: '#a16be3',
+     color: '#222',
+     fontWeight: 'bold',
+     border: 'none',
+     borderRadius: '8px',
+     padding: '8px',
+     fontSize: '14px',
+     cursor: 'pointer'
+   }
 };
 
 export default EventDetails;

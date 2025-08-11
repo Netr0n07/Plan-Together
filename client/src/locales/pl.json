@@ -165,5 +165,10 @@
   "errorChangingPassword": "Błąd zmiany hasła",
   "errorLoadingProfile": "Błąd ładowania profilu",
   "backToDashboard": "POWRÓT DO PANELU",
-  "confirmLogout": "Czy na pewno chcesz się wylogować?"
+  "confirmLogout": "Czy na pewno chcesz się wylogować?",
+  "editTitle": "EDYTUJ NAZWĘ",
+  "editDescription": "EDYTUJ OPIS",
+  "eventTitleUpdated": "Nazwa wydarzenia została zaktualizowana!",
+  "eventDescriptionUpdated": "Opis wydarzenia został zaktualizowany!",
+  "errorUpdatingEvent": "Błąd aktualizacji wydarzenia"
 } 
