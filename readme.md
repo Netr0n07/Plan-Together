@@ -1,4 +1,4 @@
-# PlanTogather
+# PlanTogether
 
 Bring people together faster: create an event, share a link, collect everyone’s availability, and get the best common time without endless chats.
 
