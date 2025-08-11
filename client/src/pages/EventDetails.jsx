@@ -15,7 +15,6 @@ const EventDetails = () => {
   const [copyMsg, setCopyMsg] = useState('');
   const [error, setError] = useState('');
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
-  const [showConfirmLeave, setShowConfirmLeave] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [participantFilter, setParticipantFilter] = useState('');
   const [showRemoveParticipantModal, setShowRemoveParticipantModal] = useState(false);
@@ -52,50 +51,9 @@ const EventDetails = () => {
     }
   };
 
-  const handleLeave = async () => {
-    try {
-      await fetch(`/api/events/${id}/leave`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      // Show success notification before redirect
-      setNotification({ 
-        show: true, 
-        message: `✓ ${t('eventLeft', { title: event.title })}`, 
-        type: 'success' 
-      });
-      
-      // Redirect after 2 seconds so user can see the notification
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 2000);
-      
-    } catch (err) {
-      console.error('Błąd opuszczania wydarzenia:', err);
-      setNotification({ 
-        show: true, 
-        message: `✗ ${t('errorLeavingEvent')}`, 
-        type: 'error' 
-      });
-      
-      // Hide error notification after 5 seconds
-      setTimeout(() => {
-        setNotification({ show: false, message: '', type: '' });
-      }, 5000);
-    }
-  };
 
-  const translateBackendMessage = (message) => {
-    const messageMap = {
-      'Jesteś twórcą wydarzenia': t('youAreEventCreator'),
-      'Nie znaleziono wydarzenia': t('eventNotFound'),
-      'Opuściłeś wydarzenie': t('leftEvent'),
-      'Błąd usuwania uczestnika': t('errorRemovingParticipant'),
-      'Błąd zapisu dostępności': t('errorSavingAvailability')
-    };
-    return messageMap[message] || message;
-  };
+
+
 
   const filterParticipants = (participants, filter) => {
     if (!filter.trim()) return participants;

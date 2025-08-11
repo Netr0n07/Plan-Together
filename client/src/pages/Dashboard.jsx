@@ -46,7 +46,7 @@ const Dashboard = () => {
     };    
   
     fetchEvents();
-  }, [token, navigate]);  
+  }, [token, navigate, t]);  
 
   const handleLogout = () => {
     sessionStorage.removeItem('token');
