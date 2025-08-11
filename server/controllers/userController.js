@@ -92,9 +92,80 @@ const updateUser = async (req, res) => {
   }
 };
 
+// Get user profile data (name, surname only)
+const getUserProfile = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const user = await User.findById(userId).select('name surname email');
+    
+    if (!user) {
+      return res.status(404).json({ message: 'Użytkownik nie znaleziony' });
+    }
+    
+    res.json(user);
+  } catch (err) {
+    console.error('Błąd pobierania profilu:', err);
+    res.status(500).json({ message: 'Błąd pobierania profilu' });
+  }
+};
+
+// Update user profile (name, surname only)
+const updateUserProfile = async (req, res) => {
+  try {
+    const { name, surname } = req.body;
+    const userId = req.user.userId;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Użytkownik nie znaleziony' });
+    }
+
+    // Update basic data
+    if (name !== undefined) user.name = name;
+    if (surname !== undefined) user.surname = surname;
+
+    await user.save();
+    res.json({ message: 'Profil zaktualizowany pomyślnie' });
+  } catch (err) {
+    console.error('Błąd aktualizacji profilu:', err);
+    res.status(500).json({ message: 'Błąd aktualizacji profilu' });
+  }
+};
+
+// Change password
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.userId;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Użytkownik nie znaleziony' });
+    }
+
+    // Verify current password
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: 'Nieprawidłowe obecne hasło' });
+    }
+
+    // Hash new password
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+    
+    res.json({ message: 'Hasło zostało zmienione pomyślnie' });
+  } catch (err) {
+    console.error('Błąd zmiany hasła:', err);
+    res.status(500).json({ message: 'Błąd zmiany hasła' });
+  }
+};
+
 module.exports = {
   registerUser,
   getMe,
   loginUser,
-  updateUser
+  updateUser,
+  getUserProfile,
+  updateUserProfile,
+  changePassword
 };

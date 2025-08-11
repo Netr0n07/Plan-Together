@@ -525,9 +525,10 @@ const styles = {
     color: 'white'
   },
   header: {
-    color: '#ccc',
-    fontSize: '14px',
-    marginBottom: '10px',
+    color: '#fff',
+    fontSize: '24px',
+    fontWeight: 'bold',
+    marginBottom: '2rem',
     textAlign: 'center'
   },
   box: {

@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import Faq from './pages/Faq';
 import CreateEvent from './pages/CreateEvent';
 import EventDetails from './pages/EventDetails';
+import EditProfile from './pages/EditProfile';
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
           <Route path="/faq" element={<Faq />} />
           <Route path="/create-event" element={<CreateEvent />} />
           <Route path="/event/:id" element={<EventDetails />} />
+          <Route path="/edit-profile" element={<EditProfile />} />
         </Routes>
       </Router>
     </LanguageProvider>

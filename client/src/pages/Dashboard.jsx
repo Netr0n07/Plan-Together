@@ -48,10 +48,8 @@ const Dashboard = () => {
     fetchEvents();
   }, [token, navigate, t]);  
 
-  const handleLogout = () => {
-    sessionStorage.removeItem('token');
-    sessionStorage.removeItem('userId');
-    navigate('/login');
+  const handleEditProfile = () => {
+    navigate('/edit-profile');
   };
 
   const handleHelp = () => navigate('/faq');
@@ -210,7 +208,7 @@ const Dashboard = () => {
         </div>
 
         <div style={styles.bottomButtons}>
-          <button onClick={handleLogout} style={styles.iconBtn}>⚙️ {t('logout')}</button>
+          <button onClick={handleEditProfile} style={styles.iconBtn}>⚙️ {t('editProfile')}</button>
           <button onClick={handleHelp} style={styles.iconBtnRed}>❓ {t('help')}</button>
         </div>
         
