@@ -25,3 +25,6 @@ yarn-error.log*
 
 # OS/macOS system files
 .DS_Store
+
+# Docker
+docker-compose.yml

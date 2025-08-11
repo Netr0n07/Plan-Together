@@ -122,27 +122,29 @@ const ScheduleModal = ({ onSave, onCancel, onClear, existingSchedule }) => {
     }}>
       <div style={{
         background: '#222', padding: '2rem', borderRadius: 16,
-        width: 350, color: '#fff'
+        width: 350, color: '#fff', textAlign: 'center'
       }}>
         <h3 style={{ fontWeight: 'bold', marginBottom: 20, textAlign: 'center' }}>{t('provideYourAvailability')}</h3>
 
         {days.map(day => (
-          <div key={day} style={{ marginBottom: 14 }}>
+          <div key={day} style={{ marginBottom: 14, textAlign: 'center' }}>
             <div style={{ marginBottom: 4 }}>{day}:</div>
-            <label style={{ marginRight: 12 }}>
-              <input
-                type="checkbox"
-                checked={schedule[day].fullFree}
-                onChange={() => handleCheckboxChange(day, 'fullFree')}
-              /> {t('allFree')}
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                checked={schedule[day].fullBusy}
-                onChange={() => handleCheckboxChange(day, 'fullBusy')}
-              /> {t('allBusy')}
-            </label>
+            <div style={{ marginBottom: 4 }}>
+              <label style={{ marginRight: 12 }}>
+                <input
+                  type="checkbox"
+                  checked={schedule[day].fullFree}
+                  onChange={() => handleCheckboxChange(day, 'fullFree')}
+                /> {t('allFree')}
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={schedule[day].fullBusy}
+                  onChange={() => handleCheckboxChange(day, 'fullBusy')}
+                /> {t('allBusy')}
+              </label>
+            </div>
             <div style={{ marginTop: 4 }}>
               <input
                 type="time"

@@ -633,15 +633,15 @@ const findCommonTimeRangeForDay = (participants, day) => {
     // Find narrowest common range from remaining participants
     const rangeParticipants = timeRanges.filter(range => range.type === 'range');
     if (rangeParticipants.length === 0) {
-      return 'cały dzień';
+      return t('allDay');
     }
     
     const commonRange = findIntersectionOfRanges(rangeParticipants);
-    return commonRange ? `${commonRange.start} - ${commonRange.end}` : 'różne godziny';
+    return commonRange ? `${commonRange.start} - ${commonRange.end}` : t('differentHours');
   } else {
     // Everyone has specific ranges - find intersection
     const commonRange = findIntersectionOfRanges(timeRanges);
-    return commonRange ? `${commonRange.start} - ${commonRange.end}` : 'różne godziny';
+    return commonRange ? `${commonRange.start} - ${commonRange.end}` : t('differentHours');
   }
 };
 
@@ -817,7 +817,11 @@ const styles = {
     padding: '12px',
     marginBottom: '16px',
     fontSize: '16px',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    textAlign: 'center',
+    display: 'block',
+    marginLeft: 'auto',
+    marginRight: 'auto'
   },
   backBtn: {
     width: '100%',

@@ -93,6 +93,8 @@
   "noParticipants": "- Brak uczestników",
   "no": "Brak",
   "noCommonTime": "Brak wspólnego czasu",
+  "allDay": "cały dzień",
+  "differentHours": "różne godziny",
   "eventDescription": "Opis wydarzenia:",
   "participants": "Uczestnicy",
   "declared": "Zadeklarowani:",
