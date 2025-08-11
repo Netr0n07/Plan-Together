@@ -4,7 +4,7 @@ Bring people together faster: create an event, share a link, collect everyone’
 
 ## Storyline
 
-In a world where everyone’s calendar is packed, PlanTogather is your airship. You set up the deck (event), invite the crew (participants) with a link, and each person marks when they can sail (availability). The app crunches everyone’s inputs and shows the best time window so you can simply meet.
+In a world where everyone’s calendar is packed, PlanTogether is your airship. You set up the deck (event), invite the crew (participants) with a link, and each person marks when they can sail (availability). The app crunches everyone’s inputs and shows the best time window so you can simply meet.
 
 ## Screenshots
 
