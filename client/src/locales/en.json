@@ -164,5 +164,6 @@
   "errorUpdatingProfile": "Error updating profile",
   "errorChangingPassword": "Error changing password",
   "errorLoadingProfile": "Error loading profile",
-  "backToDashboard": "BACK TO DASHBOARD"
+  "backToDashboard": "BACK TO DASHBOARD",
+  "confirmLogout": "Are you sure you want to logout?"
 } 

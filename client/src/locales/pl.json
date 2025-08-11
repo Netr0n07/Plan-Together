@@ -164,5 +164,6 @@
   "errorUpdatingProfile": "Błąd aktualizacji profilu",
   "errorChangingPassword": "Błąd zmiany hasła",
   "errorLoadingProfile": "Błąd ładowania profilu",
-  "backToDashboard": "POWRÓT DO PANELU"
+  "backToDashboard": "POWRÓT DO PANELU",
+  "confirmLogout": "Czy na pewno chcesz się wylogować?"
 } 

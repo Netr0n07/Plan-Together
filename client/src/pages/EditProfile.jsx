@@ -11,6 +11,7 @@ const EditProfile = () => {
   const [passwordErrors, setPasswordErrors] = useState({});
   const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const token = sessionStorage.getItem('token');
   const userId = sessionStorage.getItem('userId');
@@ -176,6 +177,17 @@ const EditProfile = () => {
     navigate('/dashboard');
   };
 
+  const handleLogout = () => {
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('userId');
+    sessionStorage.removeItem('userEmail');
+    navigate('/login');
+  };
+
+  const handleLogoutClick = () => {
+    setShowLogoutConfirm(true);
+  };
+
   if (loading) {
     return <div style={styles.center}>Ładowanie...</div>;
   }
@@ -285,7 +297,10 @@ const EditProfile = () => {
           </form>
         </div>
 
-        
+        {/* Logout Button */}
+        <button onClick={handleLogoutClick} style={styles.logoutBtn}>
+          {t('logout')}
+        </button>
       </div>
 
       {/* Notification */}
@@ -297,6 +312,23 @@ const EditProfile = () => {
             color: '#222'
           }}>
             {notification.message}
+          </div>
+        </div>
+      )}
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalBox}>
+            <p>{t('confirmLogout')}</p>
+            <div style={styles.modalButtonGroup}>
+              <button onClick={handleLogout} style={styles.modalLogoutBtn}>
+                {t('logout')}
+              </button>
+              <button onClick={() => setShowLogoutConfirm(false)} style={styles.modalCancelBtn}>
+                {t('cancel')}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -393,18 +425,30 @@ const styles = {
     fontSize: '16px',
     cursor: 'pointer'
   },
-     changePasswordBtn: {
-     width: '100%',
-     background: '#3ad1c6',
-     color: '#222',
-     fontWeight: 'bold',
-     border: 'none',
-     borderRadius: '8px',
-     padding: '12px',
-     fontSize: '16px',
-     cursor: 'pointer',
-     marginTop: '1rem'
-   },
+       changePasswordBtn: {
+    width: '100%',
+    background: '#3ad1c6',
+    color: '#222',
+    fontWeight: 'bold',
+    border: 'none',
+    borderRadius: '8px',
+    padding: '12px',
+    fontSize: '16px',
+    cursor: 'pointer',
+    marginTop: '1rem'
+  },
+  logoutBtn: {
+    width: '100%',
+    background: '#e36b6b',
+    color: '#222',
+    fontWeight: 'bold',
+    border: 'none',
+    borderRadius: '8px',
+    padding: '12px',
+    fontSize: '16px',
+    cursor: 'pointer',
+    marginTop: '1rem'
+  },
   center: {
     color: '#ccc',
     textAlign: 'center',
@@ -418,15 +462,62 @@ const styles = {
     zIndex: 1001,
     animation: 'slideIn 0.3s ease-out'
   },
-  notificationContent: {
-    padding: '12px 20px',
-    borderRadius: '8px',
-    fontWeight: 'bold',
-    fontSize: '14px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-    minWidth: '300px',
-    textAlign: 'center'
-  }
+     notificationContent: {
+     padding: '12px 20px',
+     borderRadius: '8px',
+     fontWeight: 'bold',
+     fontSize: '14px',
+     boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+     minWidth: '300px',
+     textAlign: 'center'
+   },
+   modalOverlay: {
+     position: 'fixed',
+     top: 0,
+     left: 0,
+     right: 0,
+     bottom: 0,
+     background: 'rgba(0, 0, 0, 0.7)',
+     display: 'flex',
+     justifyContent: 'center',
+     alignItems: 'center',
+     zIndex: 999
+   },
+   modalBox: {
+     background: '#222',
+     padding: '2rem',
+     borderRadius: '16px',
+     textAlign: 'center',
+     color: '#fff',
+     maxWidth: '400px'
+   },
+   modalButtonGroup: {
+     display: 'flex',
+     gap: '10px',
+     marginTop: '20px'
+   },
+   modalLogoutBtn: {
+     flex: 1,
+     background: '#e36b6b',
+     color: '#222',
+     fontWeight: 'bold',
+     border: 'none',
+     borderRadius: '8px',
+     padding: '12px',
+     fontSize: '16px',
+     cursor: 'pointer'
+   },
+   modalCancelBtn: {
+     flex: 1,
+     background: '#a16be3',
+     color: '#222',
+     fontWeight: 'bold',
+     border: 'none',
+     borderRadius: '8px',
+     padding: '12px',
+     fontSize: '16px',
+     cursor: 'pointer'
+   }
 };
 
 export default EditProfile;
