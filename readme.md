@@ -21,7 +21,7 @@ In a world where everyone’s calendar is packed, PlanTogather is your airship. 
 <img width="806" height="751" alt="obraz" src="https://github.com/user-attachments/assets/aeced233-ad40-4f77-81f2-cfb7d3290914" />
 
 - Availability Input (per day: all free/busy or time range)  
-<img width="655" height="904" alt="obraz" src="https://github.com/user-attachments/assets/09eb8d0b-68ec-4e75-be25-fbdd168a28dd" />
+<img width="549" height="903" alt="obraz" src="https://github.com/user-attachments/assets/411c629b-eba8-4e45-8dbe-ca936deac729" />
 
 - Best Time for the Event (algorithm result)  
 <img width="426" height="307" alt="obraz" src="https://github.com/user-attachments/assets/4f16aec2-976a-4b01-be85-2f71bf2a1f9b" />
