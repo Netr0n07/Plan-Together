@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: plantogather-app
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - MONGO_URI=${MONGO_URI}
+    ports:
+      - "5000:5000"
+    networks:
+      - plantogather-network
+
+networks:
+  plantogather-network:
+    driver: bridge
+
+
